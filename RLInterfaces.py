@@ -2,6 +2,9 @@ class IQEstimator:
     def estimate(self, state, action):
         raise NotImplementedError('estimate not implemented')
 
+    def batch_estimate(self, state, actions):
+        raise NotImplementedError('batch_estimate not implemented')
+
     def reward(self, state, action, reward, result_state):
         raise NotImplementedError('reward not implemented')
 
@@ -14,6 +17,9 @@ class IQEstimator:
     def from_file(filename):
         raise NotImplementedError('from_file not implemented')
 
+    def summary(self):
+        return 'Implement IQEstimator.summary()!'
+
 class IActionPolicy:
     def action(self, state, q_estimator):
         raise NotImplementedError('action not implemented')
@@ -23,6 +29,10 @@ class IActionPolicy:
 
     def from_file(filename):
         raise NotImplementedError('from_file not implemented')
+    
+    def summary(self):
+        return 'Implement IActionPolicy.summary()!'
+
 
 class ITerminationPolicy:
     def new_episode(self):

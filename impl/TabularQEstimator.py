@@ -11,6 +11,13 @@ class TabularQEstimator (IQEstimator):
         self.policy = policy
         self.compression = 6
 
+    def summary(self):
+        temporal_mode = 'Q-learning' if self.policy is None else 'SARSA'
+        return 'TabQ [{}, $\\alpha={}$, $\\gamma={}$, $|A| = {}$]'.format(temporal_mode,
+                                                                          self.learning_rate,
+                                                                          self.discount,
+                                                                          len(self.actions))
+        
     def encode_state(self, state):
         # Skip the n top rows to get rid of timing/blinking coin to shrink
         # the state space a bit
@@ -21,13 +28,17 @@ class TabularQEstimator (IQEstimator):
     def estimate(self, state, action):
         # If the state-action tuple isn't in the table, return 0
         return self.q_table.get((self.encode_state(state), action), 0.0) 
-        
+
+    def batch_estimate(self, state, actions):
+        state_repr = self.encode_state(state)
+        return map(lambda a: (a, self.q_table.get((state_repr, a), 0.0)), actions)
+    
     def reward(self, state, action, reward, result_state):
         old_estimate = self.estimate(state, action)
         if self.policy is None:
             # Q-learning
-            result_state_value = max([self.estimate(result_state, a)
-                                      for a in self.actions])
+            result_state_value = max(map(lambda av: av[1],
+                                         self.batch_estimate(result_state, self.actions)))
         else:
             # SARSA
             result_state_value = self.estimate(result_state,
