@@ -9,11 +9,11 @@ import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.TabularQEstimator as TabQ
 
 env = gym_smb.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, RIGHT_ONLY)
+env = BinarySpaceToDiscreteSpaceEnv(env, COMPLEX_MOVEMENT)
 action_list = list(range(env.action_space.n))
 q_estimator = TabQ.TabularQEstimator(actions=action_list,
-                                discount=0.9,
-                                learning_rate=0.1,
+                                discount=0.8,
+                                learning_rate=0.2,
                                 policy=None)
 policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
 
