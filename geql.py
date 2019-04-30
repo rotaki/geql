@@ -17,7 +17,7 @@ q_estimator = TabQ.TabularQEstimator(actions=action_list,
                                 policy=None)
 policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
 
-for episode in range(1000):
+for episode in range(100000):
     episode_done = False
     state = env.reset()
     while not episode_done:
