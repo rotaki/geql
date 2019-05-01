@@ -37,7 +37,9 @@ def train(max_stuck_time=30, max_episodes = 100000):
         frames = 0
         while not episode_done:
             action = policy.action(state, q_estimator)
+            action = policy.get_action(state, q_estimator)
             result_state, reward, episode_done, info = env.step(action)
+            policy.action_taken(state, action)
             # Don't know if the whole stuck-timer is actually a good idea
             if max_stuck_time is not None:
             if max_stuck_time is not None and max_stuck_time > 0:
@@ -78,3 +80,4 @@ def train(max_stuck_time=30, max_episodes = 100000):
 
 if __name__ == "__main__":
     train()
+    train(max_stuck_time=None)

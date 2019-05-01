@@ -119,9 +119,12 @@ class IActionPolicy:
     Interface for class to determine what action to take in a particular state
     (corresponding to \pi(s) in a reinforcement learning problem)
     """
-    def action(self, state, q_estimator):
+    def get_action(self, state, q_estimator):
         """
-        Decides what action to take in a given state (\pi(s))
+        Gets the action that should be taken according to the ActionPolicy.
+
+        If the action is taken, action_taken should also be called. ActionPolicy
+        may *not* change as result of only calling get_action
 
         Parameters
         ----------
@@ -135,8 +138,26 @@ class IActionPolicy:
         int
             Index of the action to be taken
         """
-        raise NotImplementedError('action not implemented')
+        raise NotImplementedError('get_action not implemented')
 
+    def action_taken(self, state, action):
+        """
+        Notifies the ActionPolicy that a particular action was taken
+
+        All calls to action_taken must be in the same sequence as actions were
+        actually taken. The ActionPolicy may change as result of action_taken. 
+        ActionPolicy may also choose to ignore this call
+
+        Parameters
+        ----------
+        state : raw state
+            The state tha action was taken in
+        action : int
+            Index of the taken action
+        """
+        pass
+
+    
     def episode_finished(self):
         """
         Notifies the ActionPolicy that the current episode is finished
