@@ -1,6 +1,9 @@
 from RLInterfaces import IQEstimator
 import numpy as np
 import zlib
+from PIL import Image
+
+import time
 
 class TabularQEstimator (IQEstimator):
     def __init__(self, actions, discount, learning_rate, policy=None):
@@ -10,6 +13,7 @@ class TabularQEstimator (IQEstimator):
         self.learning_rate = learning_rate
         self.policy = policy
         self.compression = 6
+        self.downsampling = 8
 
     def summary(self):
         temporal_mode = 'Q-learning' if self.policy is None else 'SARSA'
@@ -19,11 +23,24 @@ class TabularQEstimator (IQEstimator):
                                                                           len(self.actions))
         
     def encode_state(self, state):
-        # Skip the n top rows to get rid of timing/blinking coin to shrink
-        # the state space a bit
-        roi = state[49:,0:,0:]
-        # Compression ratio is about 0.008. Worth it!
-        return zlib.compress(roi.tostring(), self.compression)
+        # This should probably be refactored into its own class, to make the
+        # Q-estimator general for all problems
+        
+        i = Image.fromarray(state)
+
+        # Crop to the ROI
+        i = i.crop((0, 40, 256, 240))
+        
+        # Convert to grayscale
+        i = i.convert(mode='L')
+        
+        # Downsample
+        width, height = i.size
+        i = i.resize((round(width / self.downsampling), round(height / self.downsampling)),
+                     resample=Image.NEAREST)
+        
+        # Compress what's left
+        return zlib.compress(i.tobytes(), self.compression)
 
     def estimate(self, state, action):
         # If the state-action tuple isn't in the table, return 0
@@ -41,8 +58,10 @@ class TabularQEstimator (IQEstimator):
                                          self.batch_estimate(result_state, self.actions)))
         else:
             # SARSA
-            result_state_value = self.estimate(result_state,
-                                               self.policy.action(result_state, self))
+            # We never call self.policy.action_taken, so the action policy
+            # get affected by us "snooping" the action
+            result_state_value = self.estimate(
+                result_state, self.policy.get_action(result_state, self))
         temporal_error = reward + self.discount * result_state_value - old_estimate
         new_estimate = old_estimate + self.learning_rate * temporal_error
         self.q_table[(self.encode_state(state), action)] = new_estimate

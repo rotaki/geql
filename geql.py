@@ -11,15 +11,13 @@ import impl.TabularQEstimator as TabQ
 env = gym_smb.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, COMPLEX_MOVEMENT)
 action_list = list(range(env.action_space.n))
+policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
 q_estimator = TabQ.TabularQEstimator(actions=action_list,
                                 discount=0.8,
-                                learning_rate=0.2,
-                                policy=None)
-policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
+                                learning_rate=0.1,
+                                     policy=policy)
 
-
-
-def train(max_stuck_time=30, max_episodes = 100000):
+def train(frames_per_action = 6, max_stuck_time=30, max_episodes = 100000):
     training_stats = TS.TrainingStats(q_estimator,
                                       policy,
                                       None if max_stuck_time is None else
@@ -36,20 +34,24 @@ def train(max_stuck_time=30, max_episodes = 100000):
         time_start = time.monotonic()
         frames = 0
         while not episode_done:
-            action = policy.action(state, q_estimator)
-            action = policy.get_action(state, q_estimator)
+            if frames % frames_per_action == 0:
+                action = policy.get_action(state, q_estimator)
+
+            # Even if we don't choose a *new* action every frame, it is
+            # free to observe the outcome :)
             result_state, reward, episode_done, info = env.step(action)
+            if frames % frames_per_action == 0:
+                env.render()
+                        
             policy.action_taken(state, action)
             # Don't know if the whole stuck-timer is actually a good idea
-            if max_stuck_time is not None:
             if max_stuck_time is not None and max_stuck_time > 0:
                 if info['x_pos'] < max_x and info['time'] + max_stuck_time < time_max_x:
-                    #reward = -5
+                    reward = -15
                     episode_done = True
                     
             q_estimator.reward(state, action, reward, result_state)
             state = result_state
-            env.render()
             
             # Observe some fitness related variables
             # TODO: If the agent ever gets good enough to complete the
@@ -63,7 +65,6 @@ def train(max_stuck_time=30, max_episodes = 100000):
             # Terminate the episode on death-signal
             if reward == -15:
                 episode_done = True
-
 
         # estimator should perform batch-updates in finished() (if used)
         q_estimator.episode_finished()
@@ -79,5 +80,4 @@ def train(max_stuck_time=30, max_episodes = 100000):
             
 
 if __name__ == "__main__":
-    train()
     train(max_stuck_time=None)

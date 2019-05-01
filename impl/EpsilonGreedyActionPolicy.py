@@ -6,7 +6,7 @@ class EpsilonGreedyActionPolicy (IActionPolicy):
         self.epsilon = epsilon
         self.actions = actions
 
-    def action(self, state, q_estimator):
+    def get_action(self, state, q_estimator):
         if random.random() < self.epsilon:
             # Choose randomly
             return random.choice(self.actions)
