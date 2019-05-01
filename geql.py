@@ -40,6 +40,7 @@ def train(max_stuck_time=30, max_episodes = 100000):
             result_state, reward, episode_done, info = env.step(action)
             # Don't know if the whole stuck-timer is actually a good idea
             if max_stuck_time is not None:
+            if max_stuck_time is not None and max_stuck_time > 0:
                 if info['x_pos'] < max_x and info['time'] + max_stuck_time < time_max_x:
                     #reward = -5
                     episode_done = True
