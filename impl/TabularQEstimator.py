@@ -47,8 +47,9 @@ class TabularQEstimator (IQEstimator):
         new_estimate = old_estimate + self.learning_rate * temporal_error
         self.q_table[(self.encode_state(state), action)] = new_estimate
 
-    def batch_reward(self, sars_list):
-        for sars in sars_list:
-            self.reward(sars)
+    def episode_finished(self):
+        # Do nothing here for this QEstimator
+        # (if we wanted to do per-episode updates, we'd do it here)
+        pass
 
     # TODO: save/load

@@ -19,7 +19,7 @@ policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
 
 
 
-def train(max_episodes = 10000, max_stuck_time=3):
+def train(max_stuck_time=30, max_episodes = 100000):
     training_stats = TS.TrainingStats(q_estimator,
                                       policy,
                                       None if max_stuck_time is None else
@@ -38,9 +38,10 @@ def train(max_episodes = 10000, max_stuck_time=3):
         while not episode_done:
             action = policy.action(state, q_estimator)
             result_state, reward, episode_done, info = env.step(action)
+            # Don't know if the whole stuck-timer is actually a good idea
             if max_stuck_time is not None:
                 if info['x_pos'] < max_x and info['time'] + max_stuck_time < time_max_x:
-                    reward = -15
+                    #reward = -5
                     episode_done = True
                     
             q_estimator.reward(state, action, reward, result_state)
@@ -48,8 +49,9 @@ def train(max_episodes = 10000, max_stuck_time=3):
             env.render()
             
             # Observe some fitness related variables
-            # TODO: If the agent ever gets good enough, then world/stage
-            #       will need to be added to fitness too (not only x_pos)
+            # TODO: If the agent ever gets good enough to complete the
+            # level, then world/stage will need to be added to fitness
+            # too (not only x_pos)
             frames += 1
             if info['x_pos'] > max_x:
                 max_x = info['x_pos']
@@ -59,8 +61,10 @@ def train(max_episodes = 10000, max_stuck_time=3):
             if reward == -15:
                 episode_done = True
 
-        # TODO perform batch-updates here, if used
 
+        # estimator should perform batch-updates in finished() (if used)
+        q_estimator.episode_finished()
+        policy.episode_finished()
         # Record fitness variables
         # Important: stop timer *after* batch-updates for fair FPS-comparison
         time_elapsed = time.monotonic() - time_start
