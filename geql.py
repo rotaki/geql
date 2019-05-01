@@ -17,7 +17,7 @@ q_estimator = TabQ.TabularQEstimator(actions=action_list,
                                 learning_rate=0.1,
                                      policy=policy)
 
-def train(frames_per_action = 6, max_stuck_time=30, max_episodes = 100000):
+def train(action_interval = 6, max_stuck_time=30, max_episodes = 100000):
     training_stats = TS.TrainingStats(q_estimator,
                                       policy,
                                       None if max_stuck_time is None else
@@ -34,13 +34,13 @@ def train(frames_per_action = 6, max_stuck_time=30, max_episodes = 100000):
         time_start = time.monotonic()
         frames = 0
         while not episode_done:
-            if frames % frames_per_action == 0:
+            if frames % action_interval == 0:
                 action = policy.get_action(state, q_estimator)
 
             # Even if we don't choose a *new* action every frame, it is
             # free to observe the outcome :)
             result_state, reward, episode_done, info = env.step(action)
-            if frames % frames_per_action == 0:
+            if frames % action_interval == 0:
                 env.render()
                         
             policy.action_taken(state, action)
