@@ -25,7 +25,7 @@ class LearningPolicy(Enum):
             return 'SARSA'
         return 'Unknown'
 
-def train(action_interval = 6, learning_policy=LearningPolicy.SARSA, max_episodes = 100000):
+def train(action_interval = 6, learning_policy=LearningPolicy.Q, max_episodes = 100000):
     training_stats = TS.TrainingStats(
         q_estimator,
         action_policy,
@@ -58,7 +58,7 @@ def train(action_interval = 6, learning_policy=LearningPolicy.SARSA, max_episode
                     # Select action2 with highest Q(s, action2)
                     action_values = q_estimator.batch_estimate(result_state,
                                                                action_list)
-                    av_pair = max(action_values, lambda av: av[0])
+                    av_pair = max(action_values, key=lambda av: av[0])
                     q_estimator.reward(state, action, accumulated_reward,
                                        result_state, av_pair[0])
                 elif learning_policy is LearningPolicy.SARSA:
