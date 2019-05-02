@@ -6,21 +6,16 @@ from PIL import Image
 import time
 
 class TabularQEstimator (IQEstimator):
-    def __init__(self, actions, discount, learning_rate, policy=None):
+    def __init__(self, discount, learning_rate):
         self.q_table = dict()
-        self.actions = actions
         self.discount = discount
         self.learning_rate = learning_rate
-        self.policy = policy
         self.compression = 6
         self.downsampling = 8
 
     def summary(self):
-        temporal_mode = 'Q-learning' if self.policy is None else 'SARSA'
-        return 'TabQ [{}, $\\alpha={}$, $\\gamma={}$, $|A| = {}$]'.format(temporal_mode,
-                                                                          self.learning_rate,
-                                                                          self.discount,
-                                                                          len(self.actions))
+        return 'TabQ [$\\alpha={}$, $\\gamma={}$]'.format(self.learning_rate,
+                                                          self.discount)
         
     def encode_state(self, state):
         # This should probably be refactored into its own class, to make the
@@ -49,18 +44,9 @@ class TabularQEstimator (IQEstimator):
     def batch_estimate(self, state, actions):
         return map(lambda a: (a, self.estimate(state, a), actions))
     
-    def reward(self, state, action, reward, result_state):
+    def reward(self, state, action, reward, state2, action2):
         old_estimate = self.estimate(state, action)
-        if self.policy is None:
-            # Q-learning
-            result_state_value = max(map(lambda av: av[1],
-                                         self.batch_estimate(result_state, self.actions)))
-        else:
-            # SARSA
-            # We never call self.policy.action_taken, so the action policy
-            # get affected by us "snooping" the action
-            result_state_value = self.estimate(
-                result_state, self.policy.get_action(result_state, self))
+        result_state_value = self.estimate(state2, action2)
         temporal_error = reward + self.discount * result_state_value - old_estimate
         new_estimate = old_estimate + self.learning_rate * temporal_error
         self.q_table[(self.encode_state(state), action)] = new_estimate
