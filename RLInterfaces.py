@@ -45,12 +45,15 @@ class IQEstimator:
         """
         raise NotImplementedError('batch_estimate not implemented')
 
-    def reward(self, state, action, reward, result_state):
+    def reward(self, state, action, reward, state2, action2):
         """
-        Notify the QEstimator of an observed SARS'-tuple. 
+        Notify the QEstimator of an observed SARSA'-tuple. 
         
         The QEstimator can choose to update itself immediately, or at a 
         later point (for instance when episode_finished() is called).
+
+        The QEstimator is guaranteed that reward() will be called in the same
+        order that states are observed
 
         Parameters
         ----------
@@ -60,8 +63,12 @@ class IQEstimator:
             Index of action performed in state
         reward : float
             Reward observed when performing action in state
-        result_state : raw state
+        state2 : raw state
             State observed after performing action in state
+        action2 : int
+            Index of the action to be taken in state2 according to the learning
+            algorithm. For example, for Q-learning, this will be argmax_a (Q(state2, a))
+            and for SARSA, this will be Policy(state2)
          """
         raise NotImplementedError('reward not implemented')
 
@@ -118,13 +125,13 @@ class IActionPolicy:
     """
     Interface for class to determine what action to take in a particular state
     (corresponding to \pi(s) in a reinforcement learning problem)
-    """
+    """ 
+
     def get_action(self, state, q_estimator):
         """
         Gets the action that should be taken according to the ActionPolicy.
 
-        If the action is taken, action_taken should also be called. ActionPolicy
-        may *not* change as result of only calling get_action
+        ActionPolicy *may* mutate as a result of calling get_action
 
         Parameters
         ----------
@@ -139,24 +146,6 @@ class IActionPolicy:
             Index of the action to be taken
         """
         raise NotImplementedError('get_action not implemented')
-
-    def action_taken(self, state, action):
-        """
-        Notifies the ActionPolicy that a particular action was taken
-
-        All calls to action_taken must be in the same sequence as actions were
-        actually taken. The ActionPolicy may change as result of action_taken. 
-        ActionPolicy may also choose to ignore this call
-
-        Parameters
-        ----------
-        state : raw state
-            The state tha action was taken in
-        action : int
-            Index of the taken action
-        """
-        pass
-
     
     def episode_finished(self):
         """
