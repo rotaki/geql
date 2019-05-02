@@ -50,24 +50,27 @@ class TrainingStats:
         self.episode_fitness_graph.tick_params(axis='y', colors='b')
 
         x = list(range(1, n_episodes + 1))
+        # Samples (dots)
         self.episode_fitness_graph.plot(x, self.episode_fitness,
                                         color='cornflowerblue',
                                         marker='.',
-                                        linestyle='')
+                                        linestyle='',
+                                        zorder=3)
+        # Moving average
         ma = TrainingStats.moving_average(self.episode_fitness, self.ma_width)
-        self.episode_fitness_graph.plot(x, ma, 'b--')
+        self.episode_fitness_graph.plot(x, ma, 'b--', zorder=4)
         self.episode_fitness_graph.set_ylim(bottom=0)
         # Show x on the lowest subgraph instead
         self.episode_fitness_graph.grid(b=True, axis='x')
         self.episode_fitness_graph.tick_params(axis='x', bottom=False, top=False, colors='w')
-
         
         # Time
         self.time_graph.clear()
         self.time_graph.plot(x, self.episode_game_time,
                              color='salmon',
                              marker='.',
-                             linestyle='')
+                             linestyle='',
+                             zorder=2)
         self.time_graph.set_ylim(bottom=0)
         self.time_graph.tick_params(axis='y', colors='r')
         self.time_graph.set_ylabel('episode time')
