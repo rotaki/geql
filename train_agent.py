@@ -25,7 +25,7 @@ class LearningPolicy(Enum):
             return 'SARSA'
         return 'Unknown'
 
-def train(action_interval = 6, learning_policy=LearningPolicy.Q, max_episodes = 100000):
+def train(action_interval = 6, learning_policy=LearningPolicy.SARSA, max_episodes = 100000):
     training_stats = TS.TrainingStats(
         q_estimator,
         action_policy,
@@ -42,27 +42,38 @@ def train(action_interval = 6, learning_policy=LearningPolicy.Q, max_episodes = 
         action = action_policy.get_action(state, q_estimator)
         accumulated_reward = 0
         while not episode_done:
+            # Take the action
             result_state, reward, episode_done, info = env.step(action)
+
+            # Terminate the episode on death-signal
+            if reward == -15:
+                episode_done = True
+
             # Accumulate reward between non-action frames
             accumulated_reward += reward
             env.render()
             if frames > 0 and frames % action_interval == 0:
                 # These are the only frames the RL-agent "sees"
 
-                # Action for next state
-                result_state_action = action_policy.get_action(result_state,
-                                                               q_estimator)
+                # Action for next state (unless state is terminal)
+                result_state_action = action_policy.get_action(
+                    result_state, q_estimator) if not episode_done else None
 
                 # Update q-estimator depends on which learning policy is used
                 if learning_policy is LearningPolicy.Q:
                     # Select action2 with highest Q(s, action2)
-                    action_values = q_estimator.batch_estimate(result_state,
-                                                               action_list)
-                    av_pair = max(action_values, key=lambda av: av[0])
+                    if not episode_done:
+                        action_values = q_estimator.batch_estimate(result_state,
+                                                                   action_list)
+                        av_pair = max(action_values, key=lambda av: av[0])
+                        action2 = av_pair[0]
+                    else:
+                        action2 = None
                     q_estimator.reward(state, action, accumulated_reward,
-                                       result_state, av_pair[0])
+                                       result_state, action2)
+                    
                 elif learning_policy is LearningPolicy.SARSA:
-                    # Select "actual" action2 
+                    # Select "actual" action2 (which is already None, if state is terminal)
                     q_estimator.reward(state, action, accumulated_reward,
                                        result_state, result_state_action)
                 else:
@@ -81,10 +92,6 @@ def train(action_interval = 6, learning_policy=LearningPolicy.Q, max_episodes = 
             if info['x_pos'] > max_x:
                 max_x = info['x_pos']
                 time_max_x = info['time']
-
-            # Terminate the episode on death-signal
-            if reward == -15:
-                episode_done = True
 
         # estimator should perform batch-updates in finished() (if used)
         q_estimator.episode_finished()
