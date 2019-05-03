@@ -17,7 +17,7 @@ class TrainingStats:
         self.fig.suptitle('$Q(s,a)$: ' + self.q_estimator_desc +
                           '\n$\pi(s,a)$:' + self.action_policy_desc +
                           self.comment, fontsize=8)
-        spec = self.fig.add_gridspec(ncols = 1, nrows = 4)
+        spec = gridspec.GridSpec(ncols = 1, nrows = 4, figure = self.fig)
         self.episode_fitness_graph = self.fig.add_subplot(spec[0:3,0])
         self.time_graph = self.episode_fitness_graph.twinx()        
         self.eps_graph = self.fig.add_subplot(spec[3,0], sharex = self.episode_fitness_graph)

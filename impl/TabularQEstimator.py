@@ -42,7 +42,7 @@ class TabularQEstimator (IQEstimator):
         return self.q_table.get((self.encode_state(state), action), 0.0) 
 
     def batch_estimate(self, state, actions):
-        return map(lambda a: (a, self.estimate(state, a), actions))
+        return map(lambda a: (a, self.estimate(state, a)), actions)
     
     def reward(self, state, action, reward, state2, action2):
         old_estimate = self.estimate(state, action)
