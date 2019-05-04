@@ -19,6 +19,11 @@ class LearningPolicy(Enum):
             return 'SARSA'
         return 'Unknown'
 
+class RenderOption(Enum):
+    NoRender = 0 
+    ActionFrames = 1
+    All = 2
+    
 class IMarioRLAgentListener:
     """
     Listener interface for a MarioRLAgent
@@ -75,103 +80,89 @@ class MarioRLAgent:
         self.learning_policy = learning_policy
         self.listener = listener
         self.current_episode = 0
-        self.keep_running = False
+        self.render_option = RenderOption.ActionFrames
+        self.episode_done = True
 
-    def run(self):
-        if self.keep_running:
-            raise RuntimeError('Already running')
-        self.keep_running = True
-
-        # Update the plot
-        while self.keep_running:
-            self.current_episode += 1
-            episode_done = False
-            state = env.reset()
-            max_x = 0
-            time_max_x = 0
-            time_start = time.monotonic()
-            frames = 0
-            action = self.action_policy.get_action(state, q_estimator)
-            accumulated_reward = 0
-            while not episode_done:
-                # Take the action
-                result_state, reward, episode_done, info = self.env.step(action)
-
-                # Terminate the episode on death-signal
-                if reward == -15:
-                    episode_done = True
-
-                # Accumulate reward between non-action frames
-                accumulated_reward += reward
+    def next_episode(self):
+        self.current_episode += 1
+        self.state = self.env.reset()
+        self.action = self.action_policy.get_action(self.state, self.q_estimator)
+        self.max_x = 0
+        self.time_max_x = 0
+        self.time_start = time.monotonic()
+        self.frames = 0
+        self.episode_done = False
+    
+    def step(self):
+        if self.episode_done:
+            self.next_episode()
+        done = False
+        accumulated_reward = 0
+        # Take the pending action for the next n frames
+        for frame in range(self.action_interval):
+            next_state, reward, done, info = self.env.step(self.action)
+            if self.render_option == RenderOption.All:
                 self.env.render()
-                if frames > 0 and frames % self.action_interval == 0:
-                    # These are the only frames the RL-agent "sees"
 
-                    # Action for next state (unless state is terminal)
-                    result_state_action = self.action_policy.get_action(
-                        result_state, q_estimator) if not episode_done else None
+            self.frames += 1
+            if info['x_pos'] > self.max_x:
+                self.max_x = info['x_pos']
+                self.time_max_x = info['time']
+    
+            accumulated_reward += reward
+            # Terminate the episode on death-signal
+            if reward == -15:
+                done = True
+            if done:
+                break
 
-                    # Update q-estimator depends on which learning policy is used
-                    if self.learning_policy is LearningPolicy.Q:
-                        # Select action2 with highest Q(s, action2)
-                        if not episode_done:
-                            action_values = self.q_estimator.batch_estimate(
-                                result_state, self.action_list)
-                            av_pair = max(action_values, key=lambda av: av[0])
-                            action2 = av_pair[0]
-                        else:
-                            action2 = None
-                        self.q_estimator.reward(state,
-                                                action,
-                                                accumulated_reward,
-                                                result_state,
-                                                action2)
+        if self.render_option == RenderOption.ActionFrames:
+            self.env.render()
+            
+        if done: # next_state is terminal
+            self.episode_done = True
+            # If state is terminal, there is no difference between Q and SARSA
+            self.q_estimator.reward(self.state,
+                                    self.action,
+                                    accumulated_reward,
+                                    next_state,
+                                    None)
 
-                    elif learning_policy is LearningPolicy.SARSA:
-                        # Select "actual" action2
-                        # (which is already None, if state is terminal)
-                        q_estimator.reward(state,
-                                           action,
-                                           accumulated_reward,
-                                           result_state,
-                                           result_state_action)
-                    else:
-                        raise NotImplementedError('Unknown LearningPolicy')
-
-                    action = result_state_action
-                    accumulated_reward = 0
-
-                state = result_state
-
-                # Observe some fitness related variables
-                # TODO: If the agent ever gets good enough to complete the
-                # level, then world/stage will need to be added to fitness
-                # too (not only x_pos)
-                frames += 1
-                if info['x_pos'] > max_x:
-                    max_x = info['x_pos']
-                    time_max_x = info['time']
-
-            # estimator should perform batch-updates in finished() (if used)
             q_estimator.episode_finished()
             action_policy.episode_finished()
             # Record fitness variables
             # Important: stop timer *after* batch-updates for fair FPS-comparison
-            time_elapsed = time.monotonic() - time_start
+            time_elapsed = time.monotonic() - self.time_start
             # Listener
             if self.listener is not None:
                 self.listener.episode_finished(
                     self.current_episode,
                     time_elapsed,
-                    400 - time_max_x,
-                    frames,
-                    max_x)
-
+                    400 - self.time_max_x,
+                    self.frames,
+                    self.max_x)
+            return False
+        else: # next_state is *not* terminal
+            next_action = self.action_policy.get_action(next_state, self.q_estimator)
+            if self.learning_policy == LearningPolicy.SARSA:
+                q_update_action = next_action
+            elif self.learning_policy == LearningPolicy.Q:
+                # Select action with highest Q(next_state, next_action)
+                action_values = self.q_estimator.batch_estimate(next_state,
+                                                            self.action_list)
+                av_pair = max(action_values, key=lambda av: av[0])
+                q_update_action = av_pair[0]
+                self.q_estimator.reward(self.state,
+                                        self.action,
+                                        accumulated_reward,
+                                        next_state,
+                                        q_update_action)
+            self.state = next_state
+            self.action = next_action
 
 if __name__ == '__main__':
-    print('Starting MarioRLAgent *without* GUI with some default settings. ' +
-          'This is probably *not* what you want unless you know what you\'re ' +
-          'doing')
+    print('Starting MarioRLAgent *without* UI. This is a debugging mode and' +
+          ' probably not what you want unless you know what you\'re doing')
 
     class PlotOnlyListener(IMarioRLAgentListener):
         def __init__(self, q_estimator, action_policy, learning_policy):
@@ -196,11 +187,13 @@ if __name__ == '__main__':
             self.training_stats.plot()
     
     env = gym_smb.make('SuperMarioBros-v0')
-    env = BinarySpaceToDiscreteSpaceEnv(env, COMPLEX_MOVEMENT)
+    env = BinarySpaceToDiscreteSpaceEnv(env, RIGHT_ONLY)
     action_list = list(range(env.action_space.n))
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
-    learning_policy = LearningPolicy.Q
-    q_estimator = TabQ.TabularQEstimator(discount=0.9, learning_rate=0.1)
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1)
+    learning_policy = LearningPolicy.SARSA
+    q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.2)
     listener = PlotOnlyListener(q_estimator, action_policy, learning_policy)
     agent = MarioRLAgent(env, q_estimator, action_policy, learning_policy, listener=listener)
-    agent.run()
+    for i in range(10000):
+        agent.step()
+    env.close()
