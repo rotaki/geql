@@ -11,10 +11,12 @@ class EpsilonGreedyActionPolicy (IActionPolicy):
             # Choose randomly
             return random.choice(self.actions)
         else:
-            # Choose greedily
+            # Choose greedily (break ties randomly)
             action_values = q_estimator.batch_estimate(state, self.actions)
-            best_av = max(action_values, key=lambda av: av[1]) 
-            return best_av[0]
+            best_v = max(action_values, key=lambda av: av[1])[1]
+            candidates = list(filter(lambda av: av[1] == best_v, action_values))
+            chosen = random.choice(candidates)
+            return chosen[0]
 
     def summary(self):
         return '$\epsilon-greedy$ [$\epsilon = {}$, $|A| = {}$]'.format(self.epsilon, len(self.actions))

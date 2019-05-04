@@ -13,18 +13,20 @@ import impl.TabularQEstimator as TabQ
 
 
 # Set up the model
+action_set = COMPLEX_MOVEMENT
 env = gym_smb.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, COMPLEX_MOVEMENT)
+env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
 action_list = list(range(env.action_space.n))
-action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1)
-learning_policy = MarioRLAgent.LearningPolicy.Q
-q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.2)
+action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
+learning_policy = MarioRLAgent.LearningPolicy.SARSA
+q_estimator = TabQ.TabularQEstimator(discount=0.8, learning_rate=0.2)
 
 class MarioRLGUI(wx.App, MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
                  environment,
                  q_estimator,
                  action_policy,
+                 action_set,
                  learning_policy = MarioRLAgent.LearningPolicy.SARSA,
                  action_interval = 6):
         wx.App.__init__(self)
@@ -33,6 +35,7 @@ class MarioRLGUI(wx.App, MarioRLAgent.IMarioRLAgentListener):
             environment,
             q_estimator,
             action_policy,
+            action_set,
             learning_policy,
             action_interval,
             self)
@@ -70,9 +73,11 @@ class MarioRLGUI(wx.App, MarioRLAgent.IMarioRLAgentListener):
     def on_verbose(self, event):
         if event.IsChecked():
             self.verbose = True
+            self.rl_agent.verbose = True
             print('Verbose output enabled')
         else:
             self.verbose = False
+            self.rl_agent.verbose = False
             print('Verbose output disabled')
 
     def on_render_option(self, event):
@@ -100,10 +105,7 @@ class MarioRLGUI(wx.App, MarioRLAgent.IMarioRLAgentListener):
                                               n_frames,
                                               fitness)
         self.training_stats.plot()
-        if self.verbose:
-            print('Episode {}: Fitness: {}, Time: {}'.
-                  format(episode_number, fitness, game_time_elapsed))
-        
+                
 class MarioRLFrame(wx.Frame):
     def __init__(self, gui_app):
         wx.Frame.__init__(self, None, title='MarioRL Control', size=(200, 600))
@@ -155,8 +157,8 @@ class MarioRLFrame(wx.Frame):
             
 if __name__ == '__main__':
     app = MarioRLGUI(env,
-                  q_estimator,
-                  action_policy,
-                  learning_policy
-    )
+                     q_estimator,
+                     action_policy,
+                     action_set,
+                     learning_policy)
     app.MainLoop()
