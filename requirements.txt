@@ -1,0 +1,6 @@
+gym
+gym_super_mario_bros
+nes_py
+# For wxPython On Ubuntu 18.04, it might be necessary to:
+# apt install libgstreamer-plugins-base1.0-dev libwebkitgtk-3.0-dev 
+wxPython 

@@ -46,7 +46,7 @@ class TabularQEstimator (IQEstimator):
     
     def reward(self, state, action, reward, state2, action2):
         old_estimate = self.estimate(state, action)
-        result_state_value = self.estimate(state2, action2)
+        result_state_value = self.estimate(state2, action2) if action2 is not None else 0
         temporal_error = reward + self.discount * result_state_value - old_estimate
         new_estimate = old_estimate + self.learning_rate * temporal_error
         self.q_table[(self.encode_state(state), action)] = new_estimate

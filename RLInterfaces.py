@@ -65,10 +65,12 @@ class IQEstimator:
             Reward observed when performing action in state
         state2 : raw state
             State observed after performing action in state
-        action2 : int
+        action2 : int | None
             Index of the action to be taken in state2 according to the learning
             algorithm. For example, for Q-learning, this will be argmax_a (Q(state2, a))
-            and for SARSA, this will be Policy(state2)
+            and for SARSA, this will be Policy(state2).
+
+            If state2 is a terminal state, action2 will be None
          """
         raise NotImplementedError('reward not implemented')
 
