@@ -75,7 +75,7 @@ class MarioRLAgent:
         self.q_estimator = q_estimator
         self.action_policy = action_policy
         self.env = environment
-        self.action_list = list(range(env.action_space.n))
+        self.action_list = list(range(self.env.action_space.n))
         self.action_interval = action_interval
         self.learning_policy = learning_policy
         self.listener = listener
@@ -128,8 +128,8 @@ class MarioRLAgent:
                                     next_state,
                                     None)
 
-            q_estimator.episode_finished()
-            action_policy.episode_finished()
+            self.q_estimator.episode_finished()
+            self.action_policy.episode_finished()
             # Record fitness variables
             # Important: stop timer *after* batch-updates for fair FPS-comparison
             time_elapsed = time.monotonic() - self.time_start

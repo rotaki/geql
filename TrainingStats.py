@@ -3,9 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 class TrainingStats:
-    def __init__(self, q_estimator, action_policy, comment=None, ma_width=20): 
-        self.q_estimator_desc = q_estimator.summary()
-        self.action_policy_desc = action_policy.summary()
+    def __init__(self, q_estimator_desc, action_policy_desc, comment=None, ma_width=20): 
         self.comment = '' if comment is None else '\n' + comment
         self.ma_width = ma_width
         self.n_episodes = 0
@@ -14,8 +12,8 @@ class TrainingStats:
         self.episode_time = []
         self.episode_frame_count = []
         self.fig = plt.figure()
-        self.fig.suptitle('$Q(s,a)$: ' + self.q_estimator_desc +
-                          '\n$\pi(s,a)$:' + self.action_policy_desc +
+        self.fig.suptitle('$Q(s,a)$: ' + q_estimator_desc +
+                          '\n$\pi(s,a)$:' + action_policy_desc +
                           self.comment, fontsize=8)
         spec = gridspec.GridSpec(ncols = 1, nrows = 4, figure = self.fig)
         self.episode_fitness_graph = self.fig.add_subplot(spec[0:3,0])
