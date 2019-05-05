@@ -69,12 +69,14 @@ class MarioRLAgent:
                  environment,
                  q_estimator,
                  action_policy,
+                 action_set,
                  learning_policy=LearningPolicy.Q,
                  action_interval = 6,
                  listener=None):
+        self.env = environment
         self.q_estimator = q_estimator
         self.action_policy = action_policy
-        self.env = environment
+        self.action_set = action_set
         self.action_list = list(range(self.env.action_space.n))
         self.action_interval = action_interval
         self.learning_policy = learning_policy
@@ -82,6 +84,8 @@ class MarioRLAgent:
         self.current_episode = 0
         self.render_option = RenderOption.ActionFrames
         self.episode_done = True
+        self.verbose = False
+        self.hsep = '================================================================================'
 
     def next_episode(self):
         self.current_episode += 1
@@ -92,30 +96,82 @@ class MarioRLAgent:
         self.time_start = time.monotonic()
         self.frames = 0
         self.episode_done = False
+        if self.verbose:
+            print('Starting episode {}'.format(self.current_episode))
+
+    def best_action(self, state):
+        """
+        Returns
+        -------
+        (action, float)
+            Tuple containing the index of the best action, together with its q-value
+        """
+        action_values = self.q_estimator.batch_estimate(state, self.action_list)
+        return max(action_values, key=lambda av: av[1])
+            
+    def format_all_q_values(self, state, selected_action):
+        best = self.best_action(state)
+        action_values = self.q_estimator.batch_estimate(state, self.action_list)
+        result_str = '\t {:20} {}\n'.format('Actions', 'Q(s, a)')
+        for (a, v) in action_values:
+            append_best = ' (best)' if v == best[1] else ''
+            append_selected = ' (selected)' if a == selected_action else ''
+            result_str = result_str + '\t {:20} {} {}{} \n'.format(
+                str(self.action_set[a]), v, append_best, append_selected)
+        return result_str
     
     def step(self):
         if self.episode_done:
             self.next_episode()
         done = False
         accumulated_reward = 0
+
         # Take the pending action for the next n frames
+        if self.verbose:
+            print(self.hsep)
+            prior_frame = self.frames - 1
+            prior_action = self.action_set[self.action]
+            prior_value = self.q_estimator.estimate(self.state, self.action)
+            print('Q(<{}>, {}) prior = {}'.
+                  format(prior_frame, prior_action, prior_value))
+
         for frame in range(self.action_interval):
             next_state, reward, done, info = self.env.step(self.action)
-            if self.render_option == RenderOption.All:
-                self.env.render()
 
-            self.frames += 1
+            # Record fitness
             if info['x_pos'] > self.max_x:
-                self.max_x = info['x_pos']
-                self.time_max_x = info['time']
-    
+                if info['x_pos'] > 60000:
+                    print('Warning: Ignoring insane x_pos {}'.format(info['x_pos']))
+                else:
+                    self.max_x = info['x_pos']
+                    self.time_max_x = info['time']
+                                
             accumulated_reward += reward
+
             # Terminate the episode on death-signal
             if reward == -15:
                 done = True
+
+            if self.render_option == RenderOption.All:
+                self.env.render()
+            
+            if self.verbose:
+                is_action_frame = frame == self.action_interval - 1
+                print('\nFrame: {} Action frame: {}'.
+                      format(self.frames, is_action_frame))
+                print('\t {:14} {}'.format('reward', reward))
+                print('\t {:14} {}'.format('acc. reward', accumulated_reward))
+                print('\t {:14} {}'.format('done', done))
+                for key, value in info.items():
+                    print('\t {:14} {}'.format(key, value))
+                print('\t {:14} {}'.format('max x', self.max_x))
+                print('\t {:14} {}'.format('time max x', self.time_max_x))
+            
+            self.frames += 1
+    
             if done:
                 break
-
+        
         if self.render_option == RenderOption.ActionFrames:
             self.env.render()
             
@@ -127,6 +183,15 @@ class MarioRLAgent:
                                     accumulated_reward,
                                     next_state,
                                     None)
+
+            if self.verbose:
+                posterior = self.q_estimator.estimate(self.state, self.action)
+                print('Q(<{}>, {}) posterior = {}, diff = {}'.
+                  format(prior_frame,
+                         prior_action,
+                         posterior,
+                         posterior - prior_value))
+                print(self.hsep)
 
             self.q_estimator.episode_finished()
             self.action_policy.episode_finished()
@@ -144,19 +209,31 @@ class MarioRLAgent:
             return False
         else: # next_state is *not* terminal
             next_action = self.action_policy.get_action(next_state, self.q_estimator)
+
+            if self.verbose:
+                print('\n' + self.format_all_q_values(self.state, next_action))
+                
             if self.learning_policy == LearningPolicy.SARSA:
                 q_update_action = next_action
             elif self.learning_policy == LearningPolicy.Q:
-                # Select action with highest Q(next_state, next_action)
-                action_values = self.q_estimator.batch_estimate(next_state,
-                                                            self.action_list)
-                av_pair = max(action_values, key=lambda av: av[0])
-                q_update_action = av_pair[0]
-                self.q_estimator.reward(self.state,
-                                        self.action,
-                                        accumulated_reward,
-                                        next_state,
-                                        q_update_action)
+                q_update_action = self.best_action(next_state)[0]
+
+            self.q_estimator.reward(self.state,
+                                    self.action,
+                                    accumulated_reward,
+                                    next_state,
+                                    q_update_action)
+
+            if self.verbose:
+                posterior = self.q_estimator.estimate(self.state, self.action)
+                print('Q(<{}>, {}) posterior = {}, diff = {}'.
+                  format(prior_frame,
+                         prior_action,
+                         posterior,
+                         posterior - prior_value))
+                         
+                print(self.hsep)
+            
             self.state = next_state
             self.action = next_action
 
@@ -185,15 +262,16 @@ if __name__ == '__main__':
                 n_frames,
                 fitness)
             self.training_stats.plot()
-    
+
+    action_set = RIGHT_ONLY
     env = gym_smb.make('SuperMarioBros-v0')
-    env = BinarySpaceToDiscreteSpaceEnv(env, RIGHT_ONLY)
+    env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
     action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1)
     learning_policy = LearningPolicy.SARSA
     q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.2)
     listener = PlotOnlyListener(q_estimator, action_policy, learning_policy)
-    agent = MarioRLAgent(env, q_estimator, action_policy, learning_policy, listener=listener)
+    agent = MarioRLAgent(env, q_estimator, action_policy, action_set, learning_policy, listener=listener)
     for i in range(10000):
         agent.step()
     env.close()
