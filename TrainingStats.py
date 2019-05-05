@@ -53,10 +53,10 @@ class TrainingStats:
                                         color='cornflowerblue',
                                         marker='.',
                                         linestyle='',
-                                        zorder=3)
+                                        zorder=5)
         # Moving average
         ma = TrainingStats.moving_average(self.episode_fitness, self.ma_width)
-        self.episode_fitness_graph.plot(x, ma, 'b--', zorder=4)
+        self.episode_fitness_graph.plot(x, ma, 'b--', zorder=10)
         self.episode_fitness_graph.set_ylim(bottom=0)
         # Show x on the lowest subgraph instead
         self.episode_fitness_graph.grid(b=True, axis='x')
@@ -68,7 +68,7 @@ class TrainingStats:
                              color='salmon',
                              marker='.',
                              linestyle='',
-                             zorder=2)
+                             zorder=1)
         self.time_graph.set_ylim(bottom=0)
         self.time_graph.tick_params(axis='y', colors='r')
         self.time_graph.set_ylabel('episode time')
