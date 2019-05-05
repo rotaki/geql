@@ -44,7 +44,8 @@ class MarioRLGUI(wx.App, MarioRLAgent.IMarioRLAgentListener):
         self.verbose = False
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
                                                           action_policy.summary(),
-                                                          learning_policy.describe())
+                                                          learning_policy.describe(),
+                                                          ma_width=100)
         self.training_stats.plot()
         self.Bind(wx.EVT_IDLE, self.on_idle)
         
