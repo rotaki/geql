@@ -12,6 +12,8 @@ class TabularQEstimator (IQEstimator):
         self.learning_rate = learning_rate
         self.compression = 6
         self.downsampling = 8
+        self.hits = 0
+        self.misses = 0
 
     def summary(self):
         return 'TabQ [$\\alpha={}$, $\\gamma={}$]'.format(self.learning_rate,
@@ -38,22 +40,35 @@ class TabularQEstimator (IQEstimator):
         return zlib.compress(i.tobytes(), self.compression)
 
     def estimate(self, state, action):
-        # If the state-action tuple isn't in the table, return 0
-        return self.q_table.get((self.encode_state(state), action), 0.0) 
+        encoded_state = self.encode_state(state)
+        return self.estimate_encoded(encoded_state, action)
 
+    def estimate_encoded(self, encoded_state, action):
+        sa_tuple = (encoded_state, action)
+        if sa_tuple in self.q_table:
+            self.hits += 1
+            return self.q_table[sa_tuple]
+        else:
+            self.misses += 1
+            return 0.0
+        
     def batch_estimate(self, state, actions):
-        return list(map(lambda a: (a, self.estimate(state, a)), actions))
+        encoded_state = self.encode_state(state)
+        return list(map(
+            lambda a: (a, self.estimate_encoded(encoded_state, a)),
+            actions))
     
     def reward(self, state, action, reward, state2, action2):
-        old_estimate = self.estimate(state, action)
-        result_state_value = self.estimate(state2, action2) if action2 is not None else 0
-        temporal_error = reward + self.discount * result_state_value - old_estimate
-        new_estimate = old_estimate + self.learning_rate * temporal_error
-        self.q_table[(self.encode_state(state), action)] = new_estimate
+        V_sa = self.estimate(state, action)
+        V_sa_next = self.estimate(state2, action2) if action2 is not None else 0
+        V_sa_updated = V_sa + self.learning_rate * (reward + (self.discount * V_sa_next) - V_sa)
+        self.q_table[(self.encode_state(state), action)] = V_sa_updated
 
     def episode_finished(self):
-        # Do nothing here for this QEstimator
-        # (if we wanted to do per-episode updates, we'd do it here)
-        pass
+        queries = self.hits + self.misses
+        print('TabQ hit ratio: {:.2f} % ({} hits, {} misses)'.
+              format(self.hits/queries * 100, self.hits, self.misses))
+        self.hits = 0
+        self.misses = 0
 
     # TODO: save/load

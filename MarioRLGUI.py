@@ -18,7 +18,7 @@ env = gym_smb.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
 action_list = list(range(env.action_space.n))
 action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
-learning_policy = MarioRLAgent.LearningPolicy.SARSA
+learning_policy = MarioRLAgent.LearningPolicy.Q
 q_estimator = TabQ.TabularQEstimator(discount=0.8, learning_rate=0.2)
 
 class MarioRLGUI(wx.App, MarioRLAgent.IMarioRLAgentListener):
@@ -43,7 +43,9 @@ class MarioRLGUI(wx.App, MarioRLAgent.IMarioRLAgentListener):
         self.paused = False
         self.verbose = False
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
-                                                          action_policy.summary())
+                                                          action_policy.summary(),
+                                                          learning_policy.describe(),
+                                                          ma_width=100)
         self.training_stats.plot()
         self.Bind(wx.EVT_IDLE, self.on_idle)
         

@@ -166,7 +166,7 @@ class MarioRLAgent:
                     print('\t {:14} {}'.format(key, value))
                 print('\t {:14} {}'.format('max x', self.max_x))
                 print('\t {:14} {}'.format('time max x', self.time_max_x))
-            
+                
             self.frames += 1
     
             if done:
@@ -209,15 +209,15 @@ class MarioRLAgent:
             return False
         else: # next_state is *not* terminal
             next_action = self.action_policy.get_action(next_state, self.q_estimator)
-
+            
             if self.verbose:
-                print('\n' + self.format_all_q_values(self.state, next_action))
+                print('\n' + self.format_all_q_values(next_state, next_action))
                 
             if self.learning_policy == LearningPolicy.SARSA:
                 q_update_action = next_action
             elif self.learning_policy == LearningPolicy.Q:
                 q_update_action = self.best_action(next_state)[0]
-
+                            
             self.q_estimator.reward(self.state,
                                     self.action,
                                     accumulated_reward,
@@ -233,8 +233,10 @@ class MarioRLAgent:
                          posterior - prior_value))
                          
                 print(self.hsep)
-            
-            self.state = next_state
+
+            # We *must* copy state (which is of type ndarray), otherwise, we
+            # just get a reference to the mutating state
+            self.state = next_state.copy()
             self.action = next_action
 
 if __name__ == '__main__':
