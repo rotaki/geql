@@ -113,6 +113,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             raise RuntimeError('Unknown render option')
 
     def train(self):
+        self.paused = False
         while not self.paused:
             self.rl_agent.step()
 
