@@ -55,7 +55,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 if self.confirm_quit():
                     self.should_quit = True
             else:
-                print('Ctrl-C caught!')
+                print('Ctrl-C caught! Pausing...')
                 self.paused = True
         return handler
         
@@ -89,7 +89,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             elif char == 'r':
                 self.toggle_rendering()
             elif char == 't':
-                print('Training... (Ctrl-C to return to menu)')
+                print('Training... (Ctrl-C to pause and return to menu)')
                 self.train()
             elif char == 's':
                 self.step()
