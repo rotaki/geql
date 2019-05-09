@@ -1,6 +1,7 @@
 from RLInterfaces import IQEstimator
 from Trajectory import *
 from collections import namedtuple
+from PIL import Image
 import numpy as np
 import xgboost
 import MarioRLAgent
@@ -16,7 +17,7 @@ class ActionEstimator:
         for (alpha, regressor) in self.regressors:
             accumulator += alpha * regressor.predict(data,
                                                      validate_features=False)
-        return accumulator[0]
+        return float(accumulator)
 
     def add_regressor(self, alpha, regressor):
         self.regressors.append((alpha, regressor))
@@ -41,6 +42,8 @@ class GBoostedQEstimator(IQEstimator):
         
         self.hashmod = pow(16,4)
         self.verbose = False
+
+        self.downsampling = 8
 
         
     def summary(self):
@@ -104,7 +107,7 @@ class GBoostedQEstimator(IQEstimator):
             raise NotImplementedError('Unknown learning policy')
 
         # State size
-        state_size = sa_tuples[0].state.size        
+        state_size = self.shape_state(sa_tuples[0].state).size        
         # Calculate residuals grouped by action
         residuals_by_action = dict()
         if self.verbose:
@@ -134,6 +137,7 @@ class GBoostedQEstimator(IQEstimator):
                 print('Prior rmse for action {}: {}'.format(action, residual_squared))
             dmatrix = xgboost.DMatrix(state_matrix, target_vector)
             params = dict([
+                ('max_depth', 2)
 #                ('gpu_id', 0),
 #                ('max_bin', 16),
 #                ('tree_method', 'gpu_hist'),
@@ -155,10 +159,19 @@ class GBoostedQEstimator(IQEstimator):
         (downsampled to "final" size, compressed etc
         """
         # TODO: Compression/downsampling ?
+        i = Image.fromarray(state)
+
+        # Conver to grayscale
+        i = i.convert(mode='L')
+
+        # Downsample
+        width, height = i.size
+        i = i.resize((round(width / self.downsampling), round(height / self.downsampling)),
+                     resample=Image.NEAREST)
 
         # Flatten into 1d array
-        return state.copy().reshape(-1)
-    
+        #return state.copy().reshape(-1)
+        return np.array(i).reshape(-1)
 
 
 

@@ -26,9 +26,9 @@ learning_policy = MarioRLAgent.LearningPolicy.SARSA
 #                                      learning_rate=0.1,
 #                                      learning_policy=learning_policy,
 #                                      q_action_policy=None)
-q_estimator = GBQ.GBoostedQEstimator(discount=0.05,
-                                     steps=5,
-                                     learning_rate=0.1,
+q_estimator = GBQ.GBoostedQEstimator(discount=0.5,
+                                     steps=100,
+                                     learning_rate=0.2,
                                      learning_policy=learning_policy,
                                      q_action_policy=None)
 
