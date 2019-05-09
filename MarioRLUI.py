@@ -18,8 +18,13 @@ env = gym_smb.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
 action_list = list(range(env.action_space.n))
 action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
-learning_policy = MarioRLAgent.LearningPolicy.Q
-q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.1)
+greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0)
+learning_policy = MarioRLAgent.LearningPolicy.SARSA
+q_estimator = TabQ.TabularQEstimator(discount=0.5,
+                                     steps=3,
+                                     learning_rate=0.1,
+                                     learning_policy=learning_policy,
+                                     q_action_policy=None)
 
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
@@ -30,9 +35,10 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                action_set,
                learning_policy = MarioRLAgent.LearningPolicy.SARSA,
                action_interval = 6):
+        self.q_estimator = q_estimator
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
-            q_estimator,
+            self.q_estimator,
             action_policy,
             action_set,
             learning_policy,
@@ -101,6 +107,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def toggle_verbose(self):
         self.verbose = not self.verbose
         self.rl_agent.verbose = self.verbose
+        self.q_estimator.verbose = self.verbose
 
     def toggle_rendering(self):
         if self.rl_agent.render_option == MarioRLAgent.RenderOption.NoRender:

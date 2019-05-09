@@ -88,16 +88,17 @@ class MarioRLAgent:
         self.hsep = '================================================================================'
 
     def next_episode(self):
+        self.time_start = time.monotonic()
         self.current_episode += 1
+        if self.verbose:
+            print('Starting episode {}'.format(self.current_episode))
         self.state = self.env.reset()
+        self.q_estimator.episode_start(self.state.copy())
         self.action = self.action_policy.get_action(self.state, self.q_estimator)
         self.max_x = 0
         self.time_max_x = 0
-        self.time_start = time.monotonic()
         self.frames = 0
         self.episode_done = False
-        if self.verbose:
-            print('Starting episode {}'.format(self.current_episode))
 
     def best_action(self, state):
         """
@@ -112,29 +113,25 @@ class MarioRLAgent:
     def format_all_q_values(self, state, selected_action):
         best = self.best_action(state)
         action_values = self.q_estimator.batch_estimate(state, self.action_list)
-        result_str = '\t {:20} {}\n'.format('Actions', 'Q(s, a)')
-        for (a, v) in action_values:
+        result_str = '\t {:2} {:20} {}\n'.format('id', 'Action', 'Q(s, a)')
+        for (i, (a, v)) in enumerate(action_values):
             append_best = ' (best)' if v == best[1] else ''
             append_selected = ' (selected)' if a == selected_action else ''
-            result_str = result_str + '\t {:20} {} {}{} \n'.format(
-                str(self.action_set[a]), v, append_best, append_selected)
+            result_str = result_str + '\t {:2} {:20} {} {}{} \n'.format(
+                i, str(self.action_set[a]), v, append_best, append_selected)
         return result_str
     
     def step(self):
         if self.episode_done:
             self.next_episode()
-        done = False
-        accumulated_reward = 0
 
-        # Take the pending action for the next n frames
         if self.verbose:
             print(self.hsep)
-            prior_frame = self.frames - 1
-            prior_action = self.action_set[self.action]
-            prior_value = self.q_estimator.estimate(self.state, self.action)
-            print('Q(<{}>, {}) prior = {}'.
-                  format(prior_frame, prior_action, prior_value))
 
+        done = False
+        accumulated_reward = 0
+        
+        # Take the pending action for the next n frames
         for frame in range(self.action_interval):
             next_state, reward, done, info = self.env.step(self.action)
 
@@ -177,22 +174,13 @@ class MarioRLAgent:
             
         if done: # next_state is terminal
             self.episode_done = True
-            # If state is terminal, there is no difference between Q and SARSA
-            self.q_estimator.reward(self.state,
-                                    self.action,
-                                    accumulated_reward,
-                                    next_state,
-                                    None)
 
-            if self.verbose:
-                posterior = self.q_estimator.estimate(self.state, self.action)
-                print('Q(<{}>, {}) posterior = {}, diff = {}'.
-                  format(prior_frame,
-                         prior_action,
-                         posterior,
-                         posterior - prior_value))
-                print(self.hsep)
-
+            self.q_estimator.record_transition(action=self.action,
+                                               reward=accumulated_reward,
+                                               state=next_state.copy(),
+                                               terminal=True,
+                                               lp_action=None)
+            
             self.q_estimator.episode_finished()
             self.action_policy.episode_finished()
             # Record fitness variables
@@ -206,38 +194,33 @@ class MarioRLAgent:
                     400 - self.time_max_x,
                     self.frames,
                     self.max_x)
-            return False
+
         else: # next_state is *not* terminal
             next_action = self.action_policy.get_action(next_state, self.q_estimator)
             
             if self.verbose:
                 print('\n' + self.format_all_q_values(next_state, next_action))
-                
+            
             if self.learning_policy == LearningPolicy.SARSA:
-                q_update_action = next_action
+                lp_action = next_action
             elif self.learning_policy == LearningPolicy.Q:
-                q_update_action = self.best_action(next_state)[0]
-                            
-            self.q_estimator.reward(self.state,
-                                    self.action,
-                                    accumulated_reward,
-                                    next_state,
-                                    q_update_action)
+                lp_action = None
 
-            if self.verbose:
-                posterior = self.q_estimator.estimate(self.state, self.action)
-                print('Q(<{}>, {}) posterior = {}, diff = {}'.
-                  format(prior_frame,
-                         prior_action,
-                         posterior,
-                         posterior - prior_value))
-                         
-                print(self.hsep)
+            self.q_estimator.record_transition(action=self.action,
+                                               reward=accumulated_reward,
+                                               state=next_state.copy(),
+                                               terminal=False,
+                                               lp_action=lp_action)
+
 
             # We *must* copy state (which is of type ndarray), otherwise, we
             # just get a reference to the mutating state
             self.state = next_state.copy()
             self.action = next_action
+
+        if self.verbose:
+            print(self.hsep)
+
 
 if __name__ == '__main__':
     print('Starting MarioRLAgent *without* UI. This is a debugging mode and' +
