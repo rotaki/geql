@@ -10,15 +10,13 @@ class ActionEstimator:
     def __init__(self):
         self.regressors = []
 
-    def estimate(self, shaped_state):
+    def estimate(self, dmatrix):
         accumulator = 0.0
-        shape2 = shaped_state.reshape([1, shaped_state.size])
-        data = xgboost.DMatrix(shape2)
         for (alpha, regressor) in self.regressors:
-            accumulator += alpha * regressor.predict(data,
+            accumulator += alpha * regressor.predict(dmatrix,
                                                      validate_features=False)
         return float(accumulator)
-
+    
     def add_regressor(self, alpha, regressor):
         self.regressors.append((alpha, regressor))
 
@@ -53,17 +51,24 @@ class GBoostedQEstimator(IQEstimator):
             self.steps)
     
     def estimate(self, state, action):
+        state_dmatrix = xgboost.DMatrix(self.shape_state(state))
+        return self.estimate_dmatrix(state_dmatrix, action)
+
+    def estimate_dmatrix(self, state_dmatrix, action):
         if action not in self.estimators:
             return 0.0
         else:
-            return self.estimators[action].estimate(self.shape_state(state))
+            return self.estimators[action].estimate(state_dmatrix)
 
 #    def estimate_preprocessed_state(self, state, action):
 #        return 0.0
 
     def batch_estimate(self, state, actions):
         # TODO: Reshaping
-        return list(map(lambda a: (a, self.estimate(state, a)), actions))
+        state_dmatrix = xgboost.DMatrix(self.shape_state(state))
+        return list(map(
+            lambda a: (a, self.estimate_dmatrix(state_dmatrix, a)),
+            actions))
 
     def episode_start(self, initial_state):
         self.trajectory = Trajectory(initial_state)
@@ -137,7 +142,7 @@ class GBoostedQEstimator(IQEstimator):
                 print('Prior rmse for action {}: {}'.format(action, residual_squared))
             dmatrix = xgboost.DMatrix(state_matrix, target_vector)
             params = dict([
-                ('max_depth', 2)
+                ('max_depth', 2),
 #                ('gpu_id', 0),
 #                ('max_bin', 16),
 #                ('tree_method', 'gpu_hist'),
@@ -162,7 +167,7 @@ class GBoostedQEstimator(IQEstimator):
         i = Image.fromarray(state)
 
         # Conver to grayscale
-        i = i.convert(mode='L')
+        # i = i.convert(mode='L')
 
         # Downsample
         width, height = i.size
@@ -171,7 +176,7 @@ class GBoostedQEstimator(IQEstimator):
 
         # Flatten into 1d array
         #return state.copy().reshape(-1)
-        return np.array(i).reshape(-1)
+        return np.array(i).reshape(1, -1)
 
 
 

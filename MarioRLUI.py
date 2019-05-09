@@ -18,7 +18,7 @@ action_set = COMPLEX_MOVEMENT
 env = gym_smb.make('SuperMarioBros-v0')
 env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
 action_list = list(range(env.action_space.n))
-action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
+action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1)
 greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0)
 learning_policy = MarioRLAgent.LearningPolicy.SARSA
 # q_estimator = TabQ.TabularQEstimator(discount=0.5,
@@ -27,10 +27,10 @@ learning_policy = MarioRLAgent.LearningPolicy.SARSA
 #                                      learning_policy=learning_policy,
 #                                      q_action_policy=None)
 q_estimator = GBQ.GBoostedQEstimator(discount=0.5,
-                                     steps=100,
+                                     steps=10000,
                                      learning_rate=0.2,
                                      learning_policy=learning_policy,
-                                     q_action_policy=None)
+                                     q_action_policy=greedy_policy)
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
