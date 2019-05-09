@@ -19,9 +19,9 @@ class TrainingAgent(EncodeState):
         self.sci = sample_collect_interval
 
     def action_choice(self):
-        """
-        Returns action from key
-        """
+
+
+        # TODO: fix for two characters e.g) 10, 11
         x = ord(getch.getch())
 
         return x-48
@@ -29,7 +29,11 @@ class TrainingAgent(EncodeState):
 
     # Returns training states with encoding
     def get_training_states(self):
-
+        print("===========================================================================================")
+        print("Pretraining session! Let Mario explore as much as possibile!!")
+        print("Press 0 to {} to play, Press q to quit.".format(self.env.action_space.n-1))
+        print("===========================================================================================")
+        
         done = True
         for x in range(self.steps):
             if done:
@@ -40,6 +44,7 @@ class TrainingAgent(EncodeState):
                 action = self.action_choice()
                 if action in np.arange(self.env.action_space.n):
                     break
+                # Press q to quit
                 elif action == 113-48:
                     sys.exit()
             
