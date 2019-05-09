@@ -1,6 +1,7 @@
-from encode import EncodeState
+from EncodeState import EncodeState
 import numpy as np
 import getch
+import sys
 
 """
 * collect training samples and store it in a table
@@ -22,11 +23,13 @@ class TrainingAgent(EncodeState):
         Returns action from key
         """
         x = ord(getch.getch())
+
         return x-48
 
 
     # Returns training states with encoding
     def get_training_states(self):
+
         done = True
         for x in range(self.steps):
             if done:
@@ -37,7 +40,8 @@ class TrainingAgent(EncodeState):
                 action = self.action_choice()
                 if action in np.arange(self.env.action_space.n):
                     break
-                
+                elif action == 113-48:
+                    sys.exit()
             
             for frame in range(self.action_interval):
                 next_state, reward, done, info = self.env.step(action)

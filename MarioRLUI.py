@@ -12,24 +12,8 @@ import TrainingStats
 import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.TabularQEstimator as TabQ
 
-from training_states import TrainingStates
-from cluster import Cluster
-
-
-# Set up the model
-env = gym_smb.make('SuperMarioBros-v0')
-action_set = COMPLEX_MOVEMENT
-env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
-action_list = list(range(env.action_space.n))
-
-t = TrainingStates(env=env, clustering_method="kmeans", steps=3000)
-c = Cluster(action_space_size=env.action_space.n, clustering_method="kmeans", n_clusters=15)
-c.cluster(t.get_training_states())
-c.show_action_count()
-
-action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05, cluster=c)
-learning_policy = MarioRLAgent.LearningPolicy.Q
-q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.1)
+from UnsupervisedTrainingAgent import TrainingAgent
+from UnsupervisedLearning import Cluster
 
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
@@ -103,6 +87,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 self.train()
             elif char == 's':
                 self.step()
+                print(self.rl_agent.action_policy.cluster.show_action_count())
             elif char == 'q':
                 if self.confirm_quit():
                     self.should_quit = True
@@ -137,13 +122,42 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             return char == 'y' or char == 'Y'
         except OverflowError:
             return False
+
+    def unsupervised_learning(self):
+         TA = TrainingAgent(environment=self.rl_agent.env, clustering_method="kmeans", steps=300, action_interval=self.rl_agent.action_interval, sample_collect_interval=20)
+         C = Cluster(action_space_size=self.rl_agent.env.action_space.n, clustering_method="kmeans", n_clusters=15)
+         C.cluster(TA.get_training_states())
+         return C
+         
+
             
 if __name__ == '__main__':
+    # Set up the model
+    env = gym_smb.make('SuperMarioBros-v0')
+    action_set = COMPLEX_MOVEMENT
+    env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
+    action_list = list(range(env.action_space.n))
+   
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05, cluster=None)
+    learning_policy = MarioRLAgent.LearningPolicy.Q
+    q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.1)
+   
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,
                     action_set,
                     learning_policy)
+    cluster = app.unsupervised_learning()
+        
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05, cluster=cluster)
+    learning_policy = MarioRLAgent.LearningPolicy.Q
+    q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.1)
     
-    #app.main_loop()
-    #env.close()
+    app = MarioRLUI(env,
+                    q_estimator,
+                    action_policy,
+                    action_set,
+                    learning_policy)
+    app.unsupervised()
+    app.main_loop()
+    env.close()
