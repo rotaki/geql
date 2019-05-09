@@ -17,8 +17,6 @@ import impl.GBoostedQEstimator as GBQ
 from UnsupervisedTrainingAgent import TrainingAgent
 from UnsupervisedLearning import Cluster
 
-
-
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
                environment,
@@ -143,7 +141,7 @@ if __name__ == '__main__':
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
    
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05, cluster=None)
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1, cluster=None)
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0, cluster=None)
     learning_policy = MarioRLAgent.LearningPolicy.SARSA
 
@@ -152,11 +150,11 @@ if __name__ == '__main__':
     #                                      learning_rate=0.1,
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
-    q_estimator = GBQ.GBoostedQEstimator(discount=0.05,
-                                         steps=100,
+    q_estimator = GBQ.GBoostedQEstimator(discount=0.5,
+                                         steps=10000,
                                          learning_rate=0.2,
                                          learning_policy=learning_policy,
-                                         q_action_policy=None)
+                                         q_action_policy=greedy_policy)
 
     app = MarioRLUI(env,
                     q_estimator,
@@ -165,20 +163,10 @@ if __name__ == '__main__':
                     learning_policy)
     cluster = app.unsupervised_learning()
         
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05, cluster=cluster)
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1, cluster=cluster)
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0, cluster=cluster)
     learning_policy = MarioRLAgent.LearningPolicy.SARSA
 
-    # q_estimator = TabQ.TabularQEstimator(discount=0.5,
-    #                                      steps=10,
-    #                                      learning_rate=0.1,
-    #                                      learning_policy=learning_policy,
-    #                                      q_action_policy=None)
-    q_estimator = GBQ.GBoostedQEstimator(discount=0.05,
-                                         steps=100,
-                                         learning_rate=0.2,
-                                         learning_policy=learning_policy,
-                                         q_action_policy=None)
     
     app = MarioRLUI(env,
                     q_estimator,
