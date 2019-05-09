@@ -11,6 +11,7 @@ import TrainingStats
 
 import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.TabularQEstimator as TabQ
+import impl.GBoostedQEstimator as GBQ
 
 # Set up the model
 action_set = COMPLEX_MOVEMENT
@@ -20,12 +21,16 @@ action_list = list(range(env.action_space.n))
 action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
 greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0)
 learning_policy = MarioRLAgent.LearningPolicy.SARSA
-q_estimator = TabQ.TabularQEstimator(discount=0.5,
-                                     steps=3,
+# q_estimator = TabQ.TabularQEstimator(discount=0.5,
+#                                      steps=10,
+#                                      learning_rate=0.1,
+#                                      learning_policy=learning_policy,
+#                                      q_action_policy=None)
+q_estimator = GBQ.GBoostedQEstimator(discount=0.05,
+                                     steps=5,
                                      learning_rate=0.1,
                                      learning_policy=learning_policy,
                                      q_action_policy=None)
-
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,

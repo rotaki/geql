@@ -40,8 +40,9 @@ class TabularQEstimator (IQEstimator):
         self.verbose = False
 
     def summary(self):
-        return 'TabQ [$\\alpha={}$, $\\gamma={}$]'.format(self.learning_rate,
-                                                          self.discount)
+        return 'TabQ [$\\alpha={}$, $\\gamma={}$, $n={}$]'.format(self.learning_rate,
+                                                                  self.discount,
+                                                                  self.steps)
 
     def estimate(self, state, action):
         encoded_state = self.encode_state(state)
