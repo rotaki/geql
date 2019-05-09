@@ -14,7 +14,6 @@ import impl.TabularQEstimator as TabQ
 import impl.GBoostedQEstimator as GBQ
 
 
-
 from UnsupervisedTrainingAgent import TrainingAgent
 from UnsupervisedLearning import Cluster
 
@@ -154,8 +153,8 @@ if __name__ == '__main__':
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
     q_estimator = GBQ.GBoostedQEstimator(discount=0.05,
-                                         steps=5,
-                                         learning_rate=0.1,
+                                         steps=100,
+                                         learning_rate=0.2,
                                          learning_policy=learning_policy,
                                          q_action_policy=None)
 
@@ -176,8 +175,8 @@ if __name__ == '__main__':
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
     q_estimator = GBQ.GBoostedQEstimator(discount=0.05,
-                                         steps=5,
-                                         learning_rate=0.1,
+                                         steps=100,
+                                         learning_rate=0.2,
                                          learning_policy=learning_policy,
                                          q_action_policy=None)
     
@@ -189,11 +188,3 @@ if __name__ == '__main__':
     app.unsupervised()
     app.main_loop()
     env.close()
-
-
-
-    # Set up the model
-action_set = COMPLEX_MOVEMENT
-env = gym_smb.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
-action_list = list(range(env.action_space.n))

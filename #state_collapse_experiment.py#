@@ -1,0 +1,56 @@
+import sys
+from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
+import gym_super_mario_bros
+from gym_super_mario_bros.actions import SIMPLE_MOVEMENT, COMPLEX_MOVEMENT
+from PIL import Image
+import numpy as np
+# from sklearn.cluster import KMeans 
+
+env = gym_super_mario_bros.make('SuperMarioBros-v0')
+env = BinarySpaceToDiscreteSpaceEnv(env, SIMPLE_MOVEMENT)
+
+    
+
+
+"""
+* collect training samples and store it in a table
+"""
+class TrainingStates(EncodeState):
+    def __init__(self, clustering_method, steps):
+        super().__init__(resize_factor=None)
+        self.training_states = []
+        self.steps = steps
+        self.clustering_method = clustering_method
+
+
+    # Returns training states with encoding
+    def get_training_states(self):
+        done = True
+        for x in range(self.steps):
+            if done:
+                state = env.reset()
+                
+            # Control action somehow
+            action = env.action_space.sample()
+
+            state, reward, done, info = env.step(action)
+            
+            self.training_states.append(self.encode_state(self.clustering_method, state))
+        return np.array(self.training_states)
+
+
+if __name__ == "__main__":
+    clustering_method = "kmeans"    
+    T = TrainingStates(clustering_method, 100)
+    C = Cluster(clustering_method, 15)
+    C.cluster(T.get_training_states())
+    print(C.show_action_count())
+    # Example new state and new action
+
+    state = env.reset()
+    action = env.action_space.sample()
+    cluster = C.predict_state_cluster(state)
+    print(cluster)
+    C.add_action_count(state, action)
+    print(C.show_action_count())
+    print(C.gibbs_action_count(state))
