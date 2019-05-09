@@ -2,3 +2,4 @@ gym
 gym_super_mario_bros
 nes_py
 getch
+xgboost

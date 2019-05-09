@@ -45,35 +45,43 @@ class IQEstimator:
         """
         raise NotImplementedError('batch_estimate not implemented')
 
-    def reward(self, state, action, reward, state2, action2):
+    def episode_start(self, initial_state):
         """
-        Notify the QEstimator of an observed SARSA'-tuple. 
-        
-        The QEstimator can choose to update itself immediately, or at a 
-        later point (for instance when episode_finished() is called).
-
-        The QEstimator is guaranteed that reward() will be called in the same
-        order that states are observed
+        Notifies the QEstimator that a new trajectory (episode) will start.
+        All calls to record_transition() between this call and episode_finished()
+        will be a complete sequence of transitions belonging to the same trajectory
 
         Parameters
         ----------
-        state : raw state
-            State observed
+        initial_state : raw state
+            The first state in the trajectory
+        """
+        raise NotImplementedError()
+    
+    def record_transition(self, action, reward, state, terminal, lp_action):
+        """
+        Notifies the QEstimator of a transition belonging to the current
+        trajectory. The "from"-state is implicitly the original state of
+        the previous record_transition() (or the initial state, if no
+        calls have been made to record_transition yet for this trajectory)
+
+        Parameters
+        ----------
         action : int
-            Index of action performed in state
+            Index of action performed
         reward : float
-            Reward observed when performing action in state
-        state2 : raw state
-            State observed after performing action in state
-        action2 : int | None
-            Index of the action to be taken in state2 according to the learning
-            algorithm. For example, for Q-learning, this will be argmax_a (Q(state2, a))
-            and for SARSA, this will be Policy(state2).
-
-            If state2 is a terminal state, action2 will be None
-         """
-        raise NotImplementedError('reward not implemented')
-
+            Reward awarded for taking action from the last state
+        state : raw state
+            The resulting state of taking action in the previous state
+        terminal : boolean
+            True iff 'state' is a terminal state (in which case, 
+            episode_finished will also be called later)
+        lp_action : int | None
+            The action that should be taken in 'state' according to the current 
+            learning policy (next action for SARSA or None for Q-learning)
+        """
+        raise NotImplementedError()
+    
     def episode_finished(self):
         """
         Notify the QEstimator that the current episode has finished.
