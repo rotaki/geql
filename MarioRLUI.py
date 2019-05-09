@@ -12,12 +12,22 @@ import TrainingStats
 import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.TabularQEstimator as TabQ
 
+from training_states import TrainingStates
+from cluster import Cluster
+
+
 # Set up the model
-action_set = COMPLEX_MOVEMENT
 env = gym_smb.make('SuperMarioBros-v0')
+action_set = COMPLEX_MOVEMENT
 env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
 action_list = list(range(env.action_space.n))
-action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05)
+
+t = TrainingStates(env=env, clustering_method="kmeans", steps=3000)
+c = Cluster(action_space_size=env.action_space.n, clustering_method="kmeans", n_clusters=15)
+c.cluster(t.get_training_states())
+c.show_action_count()
+
+action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.05, cluster=c)
 learning_policy = MarioRLAgent.LearningPolicy.Q
 q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.1)
 
@@ -134,5 +144,6 @@ if __name__ == '__main__':
                     action_policy,
                     action_set,
                     learning_policy)
-    app.main_loop()
-    env.close()
+    
+    #app.main_loop()
+    #env.close()
