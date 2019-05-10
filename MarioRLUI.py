@@ -15,7 +15,7 @@ import impl.GBoostedQEstimator as GBQ
 import numpy as np
 import pandas as pd
 
-from StateCollector import TrainingAgent
+from StateCollector import PretrainingAgent
 from MakeCluster import Cluster
 from StateEncodingParams import StateEncodingParams
 
@@ -27,10 +27,10 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  action_set,
                  learning_policy = MarioRLAgent.LearningPolicy.SARSA,
                  action_interval = 6,
-                 unsupervised_training = False,
+                 pretraining = False,
                  clustering_method = "kmeans",
                  n_clusters = 30,
-                 n_training_steps=3000,
+                 pretraining_steps=3000,
                  sample_collect_interval=2):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
@@ -48,7 +48,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters if n_clusters is not None else n_clusters
-        self.n_training_steps = n_training_steps
+        self.pretraining_steps = pretraining_steps
         self.sample_collect_interval = sample_collect_interval
 
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
@@ -58,7 +58,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             
         self.training_stats.plot()
 
-        if unsupervised_training:
+        if pretraining:
             self.training_stats.close()
             
         signal.signal(signal.SIGINT, self.make_signal_handler())
@@ -159,9 +159,9 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
 
         # steps/sample_collect_interval >= n_clusters
         
-        TA = TrainingAgent(environment=self.rl_agent.env,
+        TA = PretrainingAgent(environment=self.rl_agent.env,
                            clustering_method=self.clustering_method,
-                           n_training_steps=self.n_training_steps,
+                           pretraining_steps=self.pretraining_steps,
                            action_interval=self.rl_agent.action_interval,
                            sample_collect_interval=self.sample_collect_interval,
                            state_encoding_params=encoding_info)
@@ -171,7 +171,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                     clustering_method=self.clustering_method,
                     n_clusters=self.n_clusters)
         
-        C.cluster(TA.get_training_states())
+        C.cluster(TA.get_pretraining_states())
         return C
          
 
@@ -211,7 +211,7 @@ if __name__ == '__main__':
                     action_policy,
                     action_set,
                     learning_policy,
-                    unsupervised_training=True)
+                    pretraining=True)
     cluster = app.pretraining()
     
     # save cluster image to ./cluster_img

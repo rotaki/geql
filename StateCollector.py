@@ -6,27 +6,24 @@ import sys
 """
 * collect training samples and store it in a table
 """
-class TrainingAgent(EncodeState):
-    def __init__(self, environment, clustering_method, n_training_steps, action_interval, sample_collect_interval, state_encoding_params):
+class PretrainingAgent(EncodeState):
+    def __init__(self, environment, clustering_method, pretraining_steps, action_interval, sample_collect_interval, state_encoding_params):
         self.env = environment
         self.clustering_method = clustering_method
         self.current_episode = 0
-        self.training_states = []
-        self.steps = n_training_steps
+        self.pretraining_states = []
+        self.steps = pretraining_steps
         self.frames = 0
         self.action_interval = action_interval
         self.s_c_i = sample_collect_interval
         self.s_e_p = state_encoding_params
 
     def action_choice(self):
-        # TODO: fix for two characters e.g) 10, 11
         x = ord(getch.getch())
-
         return x
 
-
-    # Returns training states with encoding
-    def get_training_states(self):
+    # Returns pretraining states with encoding
+    def get_pretraining_states(self):
         print("===========================================================================================")
         print("Pretraining session! Let Mario explore as much as possibile!!")
         print("Arrows to play basic moves. Space is jump forward (right+A+B)")
@@ -65,10 +62,10 @@ class TrainingAgent(EncodeState):
                     break
 
             if x % self.s_c_i == 0:
-                self.training_states.append(self.encode_state(self.clustering_method,
+                self.pretraining_states.append(self.encode_state(self.clustering_method,
                                                               next_state,
                                                               self.s_e_p))
 
             self.env.render()
             
-        return np.array(self.training_states)
+        return np.array(self.pretraining_states)
