@@ -173,6 +173,6 @@ if __name__ == '__main__':
                     action_policy,
                     action_set,
                     learning_policy)
-    app.unsupervised()
+
     app.main_loop()
     env.close()

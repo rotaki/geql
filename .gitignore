@@ -1,8 +1,7 @@
 *.*~
 .ipynb*
 *.ipynb*
-__pycache__
+__pycache__/
 Img
-#*
 .DS_Store
 \#*\#
