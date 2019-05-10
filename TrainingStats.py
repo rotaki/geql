@@ -102,3 +102,6 @@ class TrainingStats:
         self.eps_graph.grid(b=True, axis='x')
     
         plt.pause(0.1)
+
+    def close(self):
+        plt.close('all')
