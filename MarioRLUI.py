@@ -30,7 +30,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  unsupervised_training = False,
                  clustering_method = "kmeans",
                  n_clusters = 30,
-                 n_training_steps=70,
+                 n_training_steps=3000,
                  sample_collect_interval=2):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
