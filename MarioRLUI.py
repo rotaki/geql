@@ -18,6 +18,8 @@ import pandas as pd
 from StateCollector import PretrainingAgent
 from MakeCluster import Cluster
 from StateEncodingParams import StateEncodingParams
+import os
+
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
@@ -26,11 +28,11 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  action_policy,
                  action_set,
                  learning_policy = MarioRLAgent.LearningPolicy.SARSA,
-                 action_interval = 6,
+                 action_interval = 10,
                  pretraining = False,
                  clustering_method = "kmeans",
-                 n_clusters = 30,
-                 pretraining_steps=3000,
+                 n_clusters = 10,
+                 pretraining_steps=60,
                  sample_collect_interval=2):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
@@ -156,33 +158,50 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def pretraining(self):
         encoding_info = StateEncodingParams(default_shape = self.rl_agent.env.observation_space.shape,
                                             resize_factor=4)
-
         # steps/sample_collect_interval >= n_clusters
         
         TA = PretrainingAgent(environment=self.rl_agent.env,
-                           clustering_method=self.clustering_method,
-                           pretraining_steps=self.pretraining_steps,
-                           action_interval=self.rl_agent.action_interval,
-                           sample_collect_interval=self.sample_collect_interval,
-                           state_encoding_params=encoding_info)
+                              clustering_method=self.clustering_method,
+                              n_clusters = self.n_clusters,
+                              pretraining_steps=self.pretraining_steps,
+                              action_interval=self.rl_agent.action_interval,
+                              sample_collect_interval=self.sample_collect_interval,
+                              state_encoding_params=encoding_info)
         
         C = Cluster(state_encoding_params = encoding_info,
                     action_space_size=self.rl_agent.env.action_space.n,
                     clustering_method=self.clustering_method,
                     n_clusters=self.n_clusters)
-        
-        C.cluster(TA.get_pretraining_states())
+
+        pretraining_states = TA.get_pretraining_states()
+        if pretraining_states["arr_0"].shape[0] < self.n_clusters:
+            raise ValueError("Number of collected state is too small!!")
+        C.cluster(pretraining_states["arr_0"])
         return C
          
 
             
 if __name__ == '__main__':
     # Set up the model
+    
     env = gym_smb.make('SuperMarioBros-v0')
     action_set = COMPLEX_MOVEMENT
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
 
+    # Store pretraining states
+    if not os.path.exists("pretraining_states.npz"):
+        from pathlib import Path
+        Path('pretraining_states.npz').touch()
+        np.savez_compressed("./pretraining_states.npz", [-1])
+
+    # Remove cluster image file if there
+    if os.path.exists("cluster_img"):
+        import shutil
+        shutil.rmtree("cluster_img")
+
+    # Create a new one
+    os.makedirs("./cluster_img")
     
     action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0.1,
