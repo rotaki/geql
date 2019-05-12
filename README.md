@@ -1,6 +1,8 @@
+# Play Mario with Generalized Exploratory Q-Learning (GEQL)
+Test the GEQL algorithm (https://arxiv.org/pdf/1603.04119.pdf), by making it play Mario.
+
 * Dependencies:
   ```pip3 install gym nes_py gym_super_mario_bros``` 
 
 * Instructions:
-  - Edit geql.py to use your implementations
-  - Launch geql.py with python3 or ipython3.
+  ```python3 MarioRLUI.py```

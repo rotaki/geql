@@ -174,9 +174,9 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                     n_clusters=self.n_clusters)
 
         pretraining_states = TA.get_pretraining_states()
-        if pretraining_states["arr_0"].shape[0] < self.n_clusters:
+        if pretraining_states.shape[0] < self.n_clusters:
             raise ValueError("Number of collected state is too small!!")
-        C.cluster(pretraining_states["arr_0"])
+        C.cluster(pretraining_states)
         return C
          
 

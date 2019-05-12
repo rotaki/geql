@@ -45,11 +45,12 @@ class PretrainingAgent(EncodeState):
                     np.savez_compressed("./pretraining_states.npz", self.existing_pretraining_states)
                     print("COLLECTED pretraining states are saved to EXISTING pretraing states")
                     self.collected_pretraining_states = []
-                
-                return np.load("./pretraining_states.npz")
+
+                self.existing_pretraining_states =  np.load("./pretraining_states.npz")
+                return self.existing_pretraining_states["arr_0"]
             
             elif comfirm_key_2 == 'n':
-                return np.load("./pretraining_states.npz")
+                return self.existing_pretraining_states["arr_0"]
             else:
                 print("illegal key")
                 continue
