@@ -17,6 +17,6 @@ class EncodeState:
             new_height = int(state_encoding_params.default_shape[1]/state_encoding_params.resize_factor)
             resized_img = img.resize((new_width, new_height), resample=Image.BICUBIC)
             pi = state_encoding_params.pixel_intensity
-            imgtoArray = np.round(np.asarray(resized_img).reshape(-1)/pi)*pi + 256/(2*pi)
+            imgtoArray = np.ceil(np.asarray(resized_img).reshape(-1)/pi)*pi + 256/(2*pi)
             return imgtoArray
 
