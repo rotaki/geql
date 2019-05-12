@@ -32,7 +32,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  pretraining = False,
                  clustering_method = "kmeans",
                  n_clusters = 10,
-                 pretraining_steps=60,
                  sample_collect_interval=2,
                  resize_factor=16,
                  pixel_intensity=8):
@@ -52,7 +51,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters if n_clusters is not None else n_clusters
-        self.pretraining_steps = pretraining_steps
         self.sample_collect_interval = sample_collect_interval
         self.resize_factor = resize_factor
         self.pixel_intensity = pixel_intensity
@@ -182,7 +180,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         TA = PretrainingAgent(environment=self.rl_agent.env,
                               clustering_method=self.clustering_method,
                               n_clusters = self.n_clusters,
-                              pretraining_steps=self.pretraining_steps,
                               action_interval=self.rl_agent.action_interval,
                               sample_collect_interval=self.sample_collect_interval,
                               state_encoding_params=encoding_info)

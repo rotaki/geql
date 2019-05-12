@@ -1,25 +1,34 @@
 from EncodeState import EncodeState
 import numpy as np
 import getch
-import itertools
-
+import signal
 
 """
 * collect training samples and store it in a table
 """
 class PretrainingAgent(EncodeState):
-    def __init__(self, environment, clustering_method,n_clusters, pretraining_steps, action_interval, sample_collect_interval, state_encoding_params):
+    def __init__(self, environment, clustering_method,n_clusters, action_interval, sample_collect_interval, state_encoding_params):
         self.env = environment
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters
-        self.steps = pretraining_steps
+        self.steps = 0
         self.frames = 0
         self.action_interval = action_interval
         self.s_c_i = sample_collect_interval
         self.s_e_p = state_encoding_params
         self.existing_pretraining_states = np.load("./pretraining_states_ds{}_pi{}.npz".format(self.s_e_p.resize_factor, self.s_e_p.pixel_intensity))["arr_0"]
         self.collected_pretraining_states = []
+        self.done = True
+        self.paused = True
 
+        signal.signal(signal.SIGINT, self.make_signal_handler())
+
+    def make_signal_handler(self):
+        def handler(signum, frame):
+            if not self.paused:
+                print('Ctrl-C caught! Pausing...')
+                self.paused = True
+        return handler
 
     def action_choice(self):
         x = ord(getch.getch())
@@ -106,7 +115,7 @@ class PretrainingAgent(EncodeState):
         print("Number of COLLECTED pretraining states: {}".format(collected_s))
         print("Total number of states: {}".format(existing_s+collected_s))
         print("Total number of states needed to at least do clustering (number of clusters): {}".format(self.n_clusters))
-        print("Number of steps left: {}".format(self.steps))
+        print("Number of steps taken: {}".format(self.steps))
         print("Sample Collection Interval: {}".format(self.s_c_i))
         print("===========================================================================================")
 
@@ -124,81 +133,106 @@ class PretrainingAgent(EncodeState):
         print("Press e to initialize Existing pretraining states")
         print("Press s to Save collected pretraining states")
         print("Press r to show this Rule again")
+        print("Press t to train randomly")
         print("Resize factor {}".format(self.s_e_p.resize_factor))
         print("===========================================================================================")
+
+    def random_walk(self):
+        self.paused = False
+        while not self.paused:
+            if self.done:
+                state = self.env.reset()
+            action = self.env.action_space.sample()
+            self.steps += 1
+            for frame in range(self.action_interval+3):
+                next_state, reward, self.done, info = self.env.step(action)
+                if reward == -15:
+                    self.done = True
+                if self.done:
+                    break
+
+            if self.steps % self.s_c_i == 0:
+                imgArray = self.encode_state(self.clustering_method,
+                                             next_state,
+                                             self.s_e_p)
+                self.collected_pretraining_states.append(imgArray)
+                self.env.render()
+            
+        
     
     # Returns pretraining states with encoding
     def get_pretraining_states(self):
         self.print_rule()
-        self.initialize_existing_pretraining_states()
-        
-        done = True
-        
-        while self.steps > 0:
-            if done:
+        self.initialize_existing_pretraining_states()        
+                
+        # Control action from keyboard
+        while (True):
+            if self.done:
                 state = self.env.reset()
-                
-            # Control action from keyboard
-            while (True):
-                key = self.action_choice()
-                if (key == 65): # arrow-up
-                    action = 5  # jump
-                elif (key == 66): # arrow-down
-                    action = 10   # down
-                elif (key == 67): # arrow-right
-                    action = 3    # right+B
-                elif (key == 68): # arrow-left
-                    action = 8    # left+B
-                elif (key == 32): # space
-                    action = 4    # right+A+B
-                else:
-                    action = key - 48
-                    
-                if action in np.arange(self.env.action_space.n):
-                    for frame in range(self.action_interval+3):
-                        next_state, reward, done, info = self.env.step(action)
-                        if reward == -15:
-                            done = True
-                        if done:
-                                break
 
-                    if self.steps % self.s_c_i == 0:
-                        imgArray = self.encode_state(self.clustering_method,
-                                                     next_state,
-                                                     self.s_e_p)
-                        self.collected_pretraining_states.append(imgArray)
+            key = self.action_choice()
+            if (key == 65): # arrow-up
+                action = 5  # jump
+            elif (key == 66): # arrow-down
+                action = 10   # down
+            elif (key == 67): # arrow-right
+                action = 3    # right+B
+            elif (key == 68): # arrow-left
+                action = 8    # left+B
+            elif (key == 32): # space
+                action = 4    # right+A+B
+            else:
+                action = key - 48
+                    
+            if action in np.arange(self.env.action_space.n):
+                self.steps += 1
+                for frame in range(self.action_interval+3):
+                    next_state, reward, self.done, info = self.env.step(action)
+                    if reward == -15:
+                        self.done = True
+                    if self.done:
+                        break
+
+                if self.steps % self.s_c_i == 0:
+                    imgArray = self.encode_state(self.clustering_method,
+                                                 next_state,
+                                                 self.s_e_p)
+                    self.collected_pretraining_states.append(imgArray)
                     self.env.render()
-                    self.steps -= 1
-                    break
-                # Press q to quit
-                elif action == 113-48: # q
-                    while(True):
-                        print("Are you sure you want to stop pretraining? (y/n)")
-                        comfirm_key = getch.getch()
-                        if comfirm_key == 'y':
-                            return self.save_pretraining_states()
-                        elif comfirm_key == 'n':
-                            break
-                        else:
-                            print("illegal key")
-                            continue
-                                                
-                elif action == 112-48: # p
-                    self.show_states_status()
-                    
-                elif action == 99-48: # c
-                    self.initialize_collected_pretraining_states()
-
-                elif action == 101-48: # e
-                    self.initialize_existing_pretraining_states()
                 
-                elif action == 114-48: # r
-                    self.print_rule()
+            # Press q to quit
+            elif action == 113-48: # q
+                while(True):
+                    print("Are you sure you want to stop pretraining? (y/n)")
+                    comfirm_key = getch.getch()
+                    if comfirm_key == 'y':
+                        return self.save_pretraining_states()
+                    elif comfirm_key == 'n':
+                        break
+                    else:
+                        print("illegal key")
+                        continue
+                        
+            elif action == 112-48: # p
+                self.show_states_status()
+                
+            elif action == 99-48: # c
+                self.initialize_collected_pretraining_states()
 
-                elif action == 115-48: # s
-                    self.save_pretraining_states()
-                else:
-                    continue
+            elif action == 101-48: # e
+                self.initialize_existing_pretraining_states()
+                    
+            elif action == 114-48: # r
+                self.print_rule()
+
+            elif action == 115-48: # s
+                self.save_pretraining_states()
+                
+            elif action == 116-48: # t
+                print("Press Ctrl-C to quit random training")
+                self.random_walk()
+            else:
+                continue
 
         print("End of pretraining session")
         return self.save_pretraining_states()    
