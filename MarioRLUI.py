@@ -34,7 +34,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  n_clusters = 10,
                  pretraining_steps=60,
                  sample_collect_interval=2,
-                 resize_factor=16):
+                 resize_factor=16,
+                 pixel_intensity=8):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
@@ -54,6 +55,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.pretraining_steps = pretraining_steps
         self.sample_collect_interval = sample_collect_interval
         self.resize_factor = resize_factor
+        self.pixel_intensity = pixel_intensity
 
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
                                                           action_policy.summary(),
@@ -159,21 +161,22 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
 
     def pretraining(self):
         # Store pretraining states
-        if not os.path.exists("pretraining_states_ds{}.npz".format(self.resize_factor)):
+        if not os.path.exists("pretraining_states_ds{}_pi{}.npz".format(self.resize_factor, self.pixel_intensity)):
             from pathlib import Path
-            Path('pretraining_states_ds{}.npz'.format(self.resize_factor)).touch()
-            np.savez_compressed("./pretraining_states_ds{}.npz".format(self.resize_factor), [-1])
+            Path('pretraining_states_ds{}_pi{}.npz'.format(self.resize_factor, self.pixel_intensity)).touch()
+            np.savez_compressed("./pretraining_states_ds{}_pi{}.npz".format(self.resize_factor, self.pixel_intensity), [-1])
 
         # Remove cluster image file if there
-        if os.path.exists("cluster_img_ds{}".format(self.resize_factor)):
+        if os.path.exists("cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity)):
             import shutil
-            shutil.rmtree("cluster_img_ds{}".format(self.resize_factor))
+            shutil.rmtree("cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity))
 
         # Create a new one
-        os.makedirs("./cluster_img_ds{}".format(self.resize_factor))
-        
+        os.makedirs("./cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity))
+
         encoding_info = StateEncodingParams(default_shape = self.rl_agent.env.observation_space.shape,
-                                            resize_factor=self.resize_factor)
+                                            resize_factor=self.resize_factor,
+                                            pixel_intensity=self.pixel_intensity)
         # steps/sample_collect_interval >= n_clusters
         
         TA = PretrainingAgent(environment=self.rl_agent.env,

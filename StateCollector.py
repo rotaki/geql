@@ -1,8 +1,7 @@
 from EncodeState import EncodeState
 import numpy as np
 import getch
-import sys
-import os
+import itertools
 
 
 """
@@ -18,8 +17,9 @@ class PretrainingAgent(EncodeState):
         self.action_interval = action_interval
         self.s_c_i = sample_collect_interval
         self.s_e_p = state_encoding_params
-        self.existing_pretraining_states = np.load("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor))
+        self.existing_pretraining_states = np.load("./pretraining_states_ds{}_pi{}.npz".format(self.s_e_p.resize_factor, self.s_e_p.pixel_intensity))["arr_0"]
         self.collected_pretraining_states = []
+
 
     def action_choice(self):
         x = ord(getch.getch())
@@ -36,20 +36,24 @@ class PretrainingAgent(EncodeState):
                     print("Proceed with the game")
 
                 else:
-                    if self.existing_pretraining_states["arr_0"].shape == (1,):
+                    if self.existing_pretraining_states.shape == (1,):
                         self.existing_pretraining_states = np.array(self.collected_pretraining_states)
                     else:
-                        self.existing_pretraining_states = np.concatenate([self.existing_pretraining_states["arr_0"], np.array(self.collected_pretraining_states)], 0)
-                    
-                    np.savez_compressed("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor), self.existing_pretraining_states)
+                        self.existing_pretraining_states = np.concatenate([self.existing_pretraining_states, np.array(self.collected_pretraining_states)], 0)
+
+                    self.existing_pretraining_states = np.unique(self.existing_pretraining_states, axis=0)
+
+                    np.savez_compressed("./pretraining_states_ds{}_pi{}.npz".format(self.s_e_p.resize_factor, self.s_e_p.pixel_intensity), self.existing_pretraining_states)
                     print("COLLECTED pretraining states are saved to EXISTING pretraing states")
+                    print("Duplicated states are removed")
                     self.collected_pretraining_states = []
 
-                self.existing_pretraining_states =  np.load("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor))
-                return self.existing_pretraining_states["arr_0"]
+                self.show_states_status()
+                return self.existing_pretraining_states
             
             elif comfirm_key_2 == 'n':
-                return self.existing_pretraining_states["arr_0"]
+                self.show_states_status()
+                return self.existing_pretraining_states
             else:
                 print("illegal key")
                 continue
@@ -57,10 +61,11 @@ class PretrainingAgent(EncodeState):
     def initialize_existing_pretraining_states(self):
         self.show_states_status()
         print("Do you want to initialize the EXISTING pretraining states? (y/n)")
+        print("This will remove all the pretraining states inheritated")
         while(True):
             comfirm_key_2 = getch.getch()
             if comfirm_key_2 == 'y':
-                np.savez_compressed("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor), [-1])
+                np.savez_compressed("./pretraining_states_ds{}_pi{}.npz".format(self.s_e_p.resize_factor, self.s_e_p.pixel_intensity), [-1])
                 print("OK Proceed with the game.")
                 break
             elif comfirm_key_2 == 'n':
@@ -73,6 +78,7 @@ class PretrainingAgent(EncodeState):
     def initialize_collected_pretraining_states(self):
         self.show_states_status()
         print("Do you want to initialize the COLLECTED pretraining states? (y/n)")
+        print("This will remove all the pretraining states collected in this session")
         while(True):
             comfirm_key_2 = getch.getch()
             if comfirm_key_2 == 'y':
@@ -89,11 +95,11 @@ class PretrainingAgent(EncodeState):
 
 
     def show_states_status(self):
-        self.existing_pretraining_states = np.load("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor))
-        existing_s = self.existing_pretraining_states["arr_0"].shape[0]
+        self.existing_pretraining_states = np.load("./pretraining_states_ds{}_pi{}.npz".format(self.s_e_p.resize_factor, self.s_e_p.pixel_intensity))["arr_0"]
+        existing_s = self.existing_pretraining_states.shape[0]
         collected_s = np.array(self.collected_pretraining_states).shape[0]
         print("===========================================================================================")
-        if self.existing_pretraining_states["arr_0"].shape == (1,):
+        if self.existing_pretraining_states.shape == (1,):
             existing_s -= 1
         
         print("Number of EXISTING pretraining states: {}".format(existing_s))
@@ -157,9 +163,10 @@ class PretrainingAgent(EncodeState):
                                 break
 
                     if self.steps % self.s_c_i == 0:
-                        self.collected_pretraining_states.append(self.encode_state(self.clustering_method,
-                                                                         next_state,
-                                                                         self.s_e_p))
+                        imgArray = self.encode_state(self.clustering_method,
+                                                     next_state,
+                                                     self.s_e_p)
+                        self.collected_pretraining_states.append(imgArray)
                     self.env.render()
                     self.steps -= 1
                     break
@@ -175,7 +182,7 @@ class PretrainingAgent(EncodeState):
                         else:
                             print("illegal key")
                             continue
-                        
+                                                
                 elif action == 112-48: # p
                     self.show_states_status()
                     
