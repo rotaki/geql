@@ -33,7 +33,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  clustering_method = "kmeans",
                  n_clusters = 10,
                  pretraining_steps=60,
-                 sample_collect_interval=2):
+                 sample_collect_interval=2,
+                 resize_factor=16):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
@@ -52,6 +53,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.n_clusters = n_clusters if n_clusters is not None else n_clusters
         self.pretraining_steps = pretraining_steps
         self.sample_collect_interval = sample_collect_interval
+        self.resize_factor = resize_factor
 
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
                                                           action_policy.summary(),
@@ -156,8 +158,22 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             return False
 
     def pretraining(self):
+        # Store pretraining states
+        if not os.path.exists("pretraining_states_ds{}.npz".format(self.resize_factor)):
+            from pathlib import Path
+            Path('pretraining_states_ds{}.npz'.format(self.resize_factor)).touch()
+            np.savez_compressed("./pretraining_states_ds{}.npz".format(self.resize_factor), [-1])
+
+        # Remove cluster image file if there
+        if os.path.exists("cluster_img_ds{}".format(self.resize_factor)):
+            import shutil
+            shutil.rmtree("cluster_img_ds{}".format(self.resize_factor))
+
+        # Create a new one
+        os.makedirs("./cluster_img_ds{}".format(self.resize_factor))
+        
         encoding_info = StateEncodingParams(default_shape = self.rl_agent.env.observation_space.shape,
-                                            resize_factor=4)
+                                            resize_factor=self.resize_factor)
         # steps/sample_collect_interval >= n_clusters
         
         TA = PretrainingAgent(environment=self.rl_agent.env,
@@ -189,19 +205,7 @@ if __name__ == '__main__':
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
 
-    # Store pretraining states
-    if not os.path.exists("pretraining_states.npz"):
-        from pathlib import Path
-        Path('pretraining_states.npz').touch()
-        np.savez_compressed("./pretraining_states.npz", [-1])
 
-    # Remove cluster image file if there
-    if os.path.exists("cluster_img"):
-        import shutil
-        shutil.rmtree("cluster_img")
-
-    # Create a new one
-    os.makedirs("./cluster_img")
     
     action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0.1,
@@ -230,7 +234,9 @@ if __name__ == '__main__':
                     action_policy,
                     action_set,
                     learning_policy,
-                    pretraining=True)
+                    pretraining=True,
+                    resize_factor=32)
+    
     cluster = app.pretraining()
     
     # save cluster image to ./cluster_img

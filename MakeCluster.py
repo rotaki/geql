@@ -42,7 +42,7 @@ class Cluster(EncodeState, DecodeState):
     def save_cluster_image(self):
         for i, imageArray in enumerate(self.model.cluster_centers_):
             cluster_img = self.decode_state(self.clustering_method, imageArray, self.s_e_p)
-            cluster_img.save("./cluster_img/cluster_{}.png".format(i))
+            cluster_img.save("./cluster_img_ds{}/cluster_{}.png".format(self.s_e_p.resize_factor,i))
             # cluster_img.show()
         
     # Add one to the count when action taken from a state

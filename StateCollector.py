@@ -13,14 +13,13 @@ class PretrainingAgent(EncodeState):
         self.env = environment
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters
-        self.current_episode = 0
-        self.existing_pretraining_states = np.load("./pretraining_states.npz")
-        self.collected_pretraining_states = []
         self.steps = pretraining_steps
         self.frames = 0
         self.action_interval = action_interval
         self.s_c_i = sample_collect_interval
         self.s_e_p = state_encoding_params
+        self.existing_pretraining_states = np.load("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor))
+        self.collected_pretraining_states = []
 
     def action_choice(self):
         x = ord(getch.getch())
@@ -42,11 +41,11 @@ class PretrainingAgent(EncodeState):
                     else:
                         self.existing_pretraining_states = np.concatenate([self.existing_pretraining_states["arr_0"], np.array(self.collected_pretraining_states)], 0)
                     
-                    np.savez_compressed("./pretraining_states.npz", self.existing_pretraining_states)
+                    np.savez_compressed("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor), self.existing_pretraining_states)
                     print("COLLECTED pretraining states are saved to EXISTING pretraing states")
                     self.collected_pretraining_states = []
 
-                self.existing_pretraining_states =  np.load("./pretraining_states.npz")
+                self.existing_pretraining_states =  np.load("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor))
                 return self.existing_pretraining_states["arr_0"]
             
             elif comfirm_key_2 == 'n':
@@ -61,7 +60,7 @@ class PretrainingAgent(EncodeState):
         while(True):
             comfirm_key_2 = getch.getch()
             if comfirm_key_2 == 'y':
-                np.savez_compressed("./pretraining_states.npz", [-1])
+                np.savez_compressed("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor), [-1])
                 print("OK Proceed with the game.")
                 break
             elif comfirm_key_2 == 'n':
@@ -90,7 +89,7 @@ class PretrainingAgent(EncodeState):
 
 
     def show_states_status(self):
-        self.existing_pretraining_states = np.load("./pretraining_states.npz")
+        self.existing_pretraining_states = np.load("./pretraining_states_ds{}.npz".format(self.s_e_p.resize_factor))
         existing_s = self.existing_pretraining_states["arr_0"].shape[0]
         collected_s = np.array(self.collected_pretraining_states).shape[0]
         print("===========================================================================================")
@@ -119,6 +118,7 @@ class PretrainingAgent(EncodeState):
         print("Press e to initialize Existing pretraining states")
         print("Press s to Save collected pretraining states")
         print("Press r to show this Rule again")
+        print("Resize factor {}".format(self.s_e_p.resize_factor))
         print("===========================================================================================")
     
     # Returns pretraining states with encoding

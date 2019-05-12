@@ -1,4 +1,5 @@
 from PIL import Image
+from PIL import ImageFilter
 import numpy as np
 
 """
@@ -10,6 +11,7 @@ class EncodeState:
             img = Image.fromarray(state)
             img = img.crop((0,40,256,240))
             img = img.convert(mode='L')
+            img = img.filter(ImageFilter.FIND_EDGES)
             
             new_width = int(state_encoding_params.default_shape[0]/state_encoding_params.resize_factor)
             new_height = int(state_encoding_params.default_shape[1]/state_encoding_params.resize_factor)
