@@ -5,3 +5,4 @@ getch
 xgboost
 imageio
 imageio-ffmpeg
+pandas

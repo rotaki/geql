@@ -3,3 +3,7 @@
 output_*
 venv
 __pycache__
+*.ipynb*
+Img
+.DS_Store
+\#*\#

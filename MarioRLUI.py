@@ -15,35 +15,29 @@ import TrainingStats
 import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.TabularQEstimator as TabQ
 import impl.GBoostedQEstimator as GBQ
+import numpy as np
+import pandas as pd
 
-# Set up the model
-action_set = COMPLEX_MOVEMENT
-env = gym_smb.make('SuperMarioBros-v0')
-env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
-action_list = list(range(env.action_space.n))
-action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1)
-greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0)
-learning_policy = MarioRLAgent.LearningPolicy.SARSA
-# q_estimator = TabQ.TabularQEstimator(discount=0.5,
-#                                       steps=100,
-#                                       learning_rate=0.1,
-#                                       learning_policy=learning_policy,
-#                                       q_action_policy=None)
-q_estimator = GBQ.GBoostedQEstimator(discount=0.9,
-                                    steps=30,
-                                    learning_rate=0.5,
-                                    learning_policy=learning_policy,
-                                    q_action_policy=greedy_policy)
+from StateCollector import PretrainingAgent
+from MakeCluster import Cluster
+from StateEncodingParams import StateEncodingParams
+
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
-               environment,
-               q_estimator,
-               action_policy,
-               action_set,
-               learning_policy = MarioRLAgent.LearningPolicy.SARSA,
-               action_interval = 6):
-        self.q_estimator = q_estimator
+                 environment,
+                 q_estimator,
+                 action_policy,
+                 action_set,
+                 learning_policy = MarioRLAgent.LearningPolicy.SARSA,
+                 action_interval = 10,
+                 pretraining = False,
+                 clustering_method = "kmeans",
+                 n_clusters = 40,
+                 sample_collect_interval=2,
+                 resize_factor=8,
+                 pixel_intensity=32):
+        self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
             self.q_estimator,
@@ -64,11 +58,22 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.output_dir = 'output_{}/'.format(time.strftime('%Y-%m-%d_%H%M%S'))
         os.mkdir(self.output_dir)
         
+        self.clustering_method = clustering_method
+        self.n_clusters = n_clusters if n_clusters is not None else n_clusters
+        self.sample_collect_interval = sample_collect_interval
+        self.resize_factor = resize_factor
+        self.pixel_intensity = pixel_intensity
+
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
                                                           action_policy.summary(),
                                                           learning_policy.describe(),
                                                           ma_width=100)
+            
         self.training_stats.plot()
+
+        if pretraining:
+            self.training_stats.close()
+            
         signal.signal(signal.SIGINT, self.make_signal_handler())
 
     def make_signal_handler(self):
@@ -147,7 +152,17 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 print('Training... (Ctrl-C to pause and return to menu)')
                 self.train()
             elif char == 's':
+                print('M(c, a) table:')
                 self.step()
+                sep = '+'
+
+
+
+                action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.cluster.show_action_count().astype('int'),
+                                                  columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
+                                                  index = range(self.n_clusters))
+                print(action_count_table)
+                
             elif char == 'q':
                 if self.confirm_quit():
                     self.should_quit = True
@@ -196,8 +211,104 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         writer.close()
         print('Saved episode animation to {}'.format(filename))
 
+    def pretraining(self):
+        # Store pretraining states
+        if not os.path.exists("pretraining_states_ds{}_pi{}.npz".format(self.resize_factor, self.pixel_intensity)):
+            from pathlib import Path
+            Path('pretraining_states_ds{}_pi{}.npz'.format(self.resize_factor, self.pixel_intensity)).touch()
+            np.savez_compressed("./pretraining_states_ds{}_pi{}.npz".format(self.resize_factor, self.pixel_intensity), [-1])
+
+        # Remove cluster image file if there
+        if os.path.exists("cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity)):
+            import shutil
+            shutil.rmtree("cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity))
+
+        # Create a new one
+        os.makedirs("./cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity))
+
+        encoding_info = StateEncodingParams(default_shape = self.rl_agent.env.observation_space.shape,
+                                            resize_factor=self.resize_factor,
+                                            pixel_intensity=self.pixel_intensity)
+        # steps/sample_collect_interval >= n_clusters
+        
+        TA = PretrainingAgent(environment=self.rl_agent.env,
+                              q_estimator=self.q_estimator,
+                              action_policy=self.rl_agent.action_policy,
+                              action_set = self.rl_agent.action_set,
+                              action_interval=self.rl_agent.action_interval,
+                              clustering_method=self.clustering_method,
+                              n_clusters = self.n_clusters,
+                              sample_collect_interval=self.sample_collect_interval,
+                              state_encoding_params=encoding_info)
+        
+        C = Cluster(state_encoding_params = encoding_info,
+                    action_space_size=self.rl_agent.env.action_space.n,
+                    clustering_method=self.clustering_method,
+                    n_clusters=self.n_clusters)
+
+        pretraining_states = TA.get_pretraining_states()
+        if pretraining_states.shape[0] < self.n_clusters:
+            raise ValueError("Number of collected state is too small!!")
+        C.cluster(pretraining_states)
+        return C
+
             
 if __name__ == '__main__':
+    # Set up the model
+    
+    env = gym_smb.make('SuperMarioBros-v0')
+    action_set = COMPLEX_MOVEMENT
+    env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
+    action_list = list(range(env.action_space.n))
+
+
+    
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+                                                   epsilon=0.1,
+                                                   cluster=None)
+    
+    greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+                                                   epsilon=0,
+                                                   cluster=None)
+    
+    learning_policy = MarioRLAgent.LearningPolicy.SARSA
+
+        # q_estimator = TabQ.TabularQEstimator(discount=0.5,
+    #                                      steps=10,
+    #                                      learning_rate=0.1,
+    #                                      learning_policy=learning_policy,
+    #                                      q_action_policy=None)
+    q_estimator = GBQ.GBoostedQEstimator(discount=0.9,
+                                         steps=30,
+                                         learning_rate=0.5,
+                                         learning_policy=learning_policy,
+                                         q_action_policy=greedy_policy)
+
+
+    app = MarioRLUI(env,
+                    q_estimator,
+                    action_policy,
+                    action_set,
+                    learning_policy,
+                    pretraining=True)
+    
+    cluster = app.pretraining()
+    
+    # save cluster image to ./cluster_img
+    cluster.save_cluster_image()
+        
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+                                                   epsilon=0.1,
+                                                   cluster=cluster)
+    
+    greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+                                                   epsilon=0,
+                                                   cluster=cluster)
+    
+    learning_policy = MarioRLAgent.LearningPolicy.SARSA
+
+    
+    
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,
