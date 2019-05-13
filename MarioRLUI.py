@@ -31,10 +31,10 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  action_interval = 10,
                  pretraining = False,
                  clustering_method = "kmeans",
-                 n_clusters = 10,
+                 n_clusters = 40,
                  sample_collect_interval=2,
-                 resize_factor=16,
-                 pixel_intensity=8):
+                 resize_factor=8,
+                 pixel_intensity=32):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
@@ -178,9 +178,12 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         # steps/sample_collect_interval >= n_clusters
         
         TA = PretrainingAgent(environment=self.rl_agent.env,
+                              q_estimator=self.q_estimator,
+                              action_policy=self.rl_agent.action_policy,
+                              action_set = self.rl_agent.action_set,
+                              action_interval=self.rl_agent.action_interval,
                               clustering_method=self.clustering_method,
                               n_clusters = self.n_clusters,
-                              action_interval=self.rl_agent.action_interval,
                               sample_collect_interval=self.sample_collect_interval,
                               state_encoding_params=encoding_info)
         
@@ -234,8 +237,7 @@ if __name__ == '__main__':
                     action_policy,
                     action_set,
                     learning_policy,
-                    pretraining=True,
-                    resize_factor=32)
+                    pretraining=True)
     
     cluster = app.pretraining()
     

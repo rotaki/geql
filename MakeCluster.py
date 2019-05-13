@@ -21,6 +21,8 @@ class Cluster(EncodeState, DecodeState):
         if self.clustering_method == "kmeans":
             self.model = KMeans(self.n_clusters).fit(training_states)
 
+        return self.model
+
     # Returns predicted cluster of a state
     def predict_state_cluster(self, state):
         return self.model.predict(self.encode_state(self.clustering_method, state, self.s_e_p).reshape(1, -1))[0]
