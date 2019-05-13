@@ -17,7 +17,7 @@ class TrainingStats:
                           self.comment, fontsize=8)
         spec = gridspec.GridSpec(ncols = 1, nrows = 4, figure = self.fig)
         self.episode_fitness_graph = self.fig.add_subplot(spec[0:3,0])
-        self.time_graph = self.episode_fitness_graph.twinx()
+#        self.time_graph = self.episode_fitness_graph.twinx()
         self.eps_graph = self.fig.add_subplot(spec[3,0], sharex = self.episode_fitness_graph)
         self.fps_graph = self.eps_graph.twinx()
         plt.ion()
@@ -59,19 +59,19 @@ class TrainingStats:
         self.episode_fitness_graph.plot(x, ma, 'b--', zorder=10)
         self.episode_fitness_graph.set_ylim(bottom=0)
         # Show x on the lowest subgraph instead
-        self.episode_fitness_graph.grid(b=True, axis='x')
+        self.episode_fitness_graph.grid(b=True, axis='both')
         self.episode_fitness_graph.tick_params(axis='x', bottom=False, top=False, colors='w')
         
         # Time
-        self.time_graph.clear()
-        self.time_graph.plot(x, self.episode_game_time,
-                             color='salmon',
-                             marker='.',
-                             linestyle='',
-                             zorder=1)
-        self.time_graph.set_ylim(bottom=0)
-        self.time_graph.tick_params(axis='y', colors='r')
-        self.time_graph.set_ylabel('episode time')
+        # self.time_graph.clear()
+        # self.time_graph.plot(x, self.episode_game_time,
+        #                      color='salmon',
+        #                      marker='.',
+        #                      linestyle='',
+        #                      zorder=1)
+        # self.time_graph.set_ylim(bottom=0)
+        # self.time_graph.tick_params(axis='y', colors='r')
+        # self.time_graph.set_ylabel('episode time')
 
 
 
@@ -99,6 +99,6 @@ class TrainingStats:
 
         self.eps_graph.set_xlabel('episode')
         self.eps_graph.set_xlim(left=1, right=max(2,n_episodes))
-        self.eps_graph.grid(b=True, axis='x')
+        self.eps_graph.grid(b=True, axis='both')
     
         plt.pause(0.1)

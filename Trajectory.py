@@ -2,6 +2,7 @@ from collections import namedtuple
 from impl.EpsilonGreedyActionPolicy import EpsilonGreedyActionPolicy
 from RLInterfaces import IQEstimator
 import numpy as np
+import zlib
 
 Transition = namedtuple('Transition', [
     'action',    # action taken in previous state
@@ -20,11 +21,23 @@ QSample = namedtuple('QSample', [
 
 class Trajectory:
     def __init__(self, initial_state, is_terminal=False):
-        self.transitions = [Transition(None, None, initial_state, is_terminal, None)]
+        self.compression_level = 6
+        self.transitions = [Transition(None, None, self.compress_state(initial_state), is_terminal, None)]
         
     def add_transition(self, action, reward, state, terminal, lp_action):
-        self.transitions.append(Transition(action, reward, state, terminal, lp_action))
+        self.transitions.append(Transition(action, reward, self.compress_state(state), terminal, lp_action))
 
+    def compress_state(self, state):
+        data_type = state.dtype
+        shape = state.shape
+        compressed_state = zlib.compress(state.tobytes(), self.compression_level)
+        return (compressed_state, data_type, shape)
+
+    def restore_state(self, compressed_state):
+        bufsize = compressed_state[1].itemsize * np.prod(compressed_state[2])
+        return np.frombuffer(zlib.decompress(compressed_state[0], bufsize=bufsize),
+                      dtype=compressed_state[1]).reshape(compressed_state[2])
+        
     def sarsa_backup(self, entry, discount, steps, q_estimator):
         entry += 1
         discounted_reward = 0
@@ -42,9 +55,9 @@ class Trajectory:
             # Include the Q(s, a) of the last step on the horizon
             horizon_entry = self.transitions[entry + steps - 1]
             discounted_reward += pow(discount, steps) * \
-                q_estimator.estimate(horizon_entry.state, horizon_entry.lp_action)
+                q_estimator.estimate(self.restore_state(horizon_entry.state), horizon_entry.lp_action)
 
-        return QSample(self.transitions[entry - 1].state,
+        return QSample(self.restore_state(self.transitions[entry - 1].state),
                        self.transitions[entry].action,
                        discounted_reward,
                        1.0) # Importance always 1.0 for SARSA
@@ -60,9 +73,10 @@ class Trajectory:
         entry += 1
         discounted_reward = self.transitions[entry].reward
         if not self.transitions[entry].terminal:
-            q_action = q_action_policy.get_action(self.transitions[entry].state, q_estimator)
-            discounted_reward += discount * q_estimator.estimate(self.transitions[entry].state, q_action)
-        return QSample(self.transitions[entry - 1].state,
+            state = self.restore_state(self.transitions[entry].state)
+            q_action = q_action_policy.get_action(state, q_estimator)
+            discounted_reward += discount * q_estimator.estimate(state, q_action)
+        return QSample(self.restore_state(self.transitions[entry - 1].state),
                        self.transitions[entry].action,
                        discounted_reward,
                        1.0) # If we implement n-step off policy, importance factor will need to change
