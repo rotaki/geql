@@ -74,6 +74,7 @@ class PretrainingAgent(EncodeState, MarioRLAgent):
                     np.savez_compressed("./pretraining_states_ds{}_pi{}.npz".format(self.s_e_p.resize_factor, self.s_e_p.pixel_intensity), self.existing_pretraining_states)
                     print("COLLECTED pretraining states are saved to EXISTING pretraing states")
                     print("Duplicated states are removed")
+                    self.collected_pretraining_states = []
 
                 self.show_states_status()
                 return self.existing_pretraining_states
@@ -217,18 +218,36 @@ class PretrainingAgent(EncodeState, MarioRLAgent):
 
 
                 if self.current_episode % 5 == 4:
-                    unique_collected_states = np.unique(self.collected_pretraining_states, axis=0)
-                    if unique_collected_states.shape[0] >= self.n_clusters:
+                    if self.existing_pretraining_states.shape == (1,):
+                        self.existing_pretraining_states = np.array(self.collected_pretraining_states)
+                    else:
+                        self.existing_pretraining_states = np.concatenate([self.existing_pretraining_states, np.array(self.collected_pretraining_states)], 0)
+
+                    self.existing_pretraining_states = np.unique(self.existing_pretraining_states, axis=0)
+
+                    np.savez_compressed("./pretraining_states_ds{}_pi{}.npz".format(self.s_e_p.resize_factor, self.s_e_p.pixel_intensity), self.existing_pretraining_states)
+
+
+                    print("COLLECTED pretraining states are saved to EXISTING pretraing states")
+                    print("Duplicated states are removed")
+
+                    self.collected_pretraining_states = []
+                    
+                    if self.existing_pretraining_states.shape[0] >= self.n_clusters:
                         C = Cluster(state_encoding_params = self.s_e_p,
                                     action_space_size = self.env.action_space.n,
                                     clustering_method = self.clustering_method,
                                     n_clusters = self.n_clusters)
                         
-                        self.cluster_model = C.cluster(np.unique(self.collected_pretraining_states, axis=0))
-                        #self.cluster_model = C.cluster(np.array(self.collected_pretraining_states))
+                        self.cluster_model = C.cluster(self.existing_pretraining_states)
+                       
                         self.cluster = C
                 
                         C.save_cluster_image()
+
+
+                        
+                        
                         
                     else:
                         print("number of unique samples: too small. resume")
