@@ -1,5 +1,7 @@
 from EncodeState import EncodeState
+#test
 import numpy as np
+
 import getch
 import signal
 
