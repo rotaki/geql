@@ -13,9 +13,24 @@ import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.TabularQEstimator as TabQ
 import impl.GBoostedQEstimator as GBQ
 
-
-from UnsupervisedTrainingAgent import TrainingAgent
-from UnsupervisedLearning import Cluster
+# Set up the model
+action_set = COMPLEX_MOVEMENT
+env = gym_smb.make('SuperMarioBros-v0')
+env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
+action_list = list(range(env.action_space.n))
+action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1)
+greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0)
+learning_policy = MarioRLAgent.LearningPolicy.SARSA
+# q_estimator = TabQ.TabularQEstimator(discount=0.5,
+#                                      steps=10,
+#                                      learning_rate=0.1,
+#                                      learning_policy=learning_policy,
+#                                      q_action_policy=None)
+q_estimator = GBQ.GBoostedQEstimator(discount=0.5,
+                                     steps=10000,
+                                     learning_rate=0.2,
+                                     learning_policy=learning_policy,
+                                     q_action_policy=greedy_policy)
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
@@ -89,7 +104,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 self.train()
             elif char == 's':
                 self.step()
-                print(self.rl_agent.action_policy.cluster.show_action_count())
             elif char == 'q':
                 if self.confirm_quit():
                     self.should_quit = True
@@ -125,54 +139,12 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             return char == 'y' or char == 'Y'
         except OverflowError:
             return False
-
-    def unsupervised_learning(self):
-         TA = TrainingAgent(environment=self.rl_agent.env, clustering_method="kmeans", steps=300, action_interval=self.rl_agent.action_interval, sample_collect_interval=20)
-         C = Cluster(action_space_size=self.rl_agent.env.action_space.n, clustering_method="kmeans", n_clusters=15)
-         C.cluster(TA.get_training_states())
-         return C
-         
-
             
 if __name__ == '__main__':
-    # Set up the model
-    env = gym_smb.make('SuperMarioBros-v0')
-    action_set = COMPLEX_MOVEMENT
-    env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
-    action_list = list(range(env.action_space.n))
-   
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1, cluster=None)
-    greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0, cluster=None)
-    learning_policy = MarioRLAgent.LearningPolicy.SARSA
-
-    # q_estimator = TabQ.TabularQEstimator(discount=0.5,
-    #                                      steps=10,
-    #                                      learning_rate=0.1,
-    #                                      learning_policy=learning_policy,
-    #                                      q_action_policy=None)
-    q_estimator = GBQ.GBoostedQEstimator(discount=0.5,
-                                         steps=10000,
-                                         learning_rate=0.2,
-                                         learning_policy=learning_policy,
-                                         q_action_policy=greedy_policy)
-
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,
                     action_set,
                     learning_policy)
-    cluster = app.unsupervised_learning()
-        
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1, cluster=cluster)
-    greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0, cluster=cluster)
-    learning_policy = MarioRLAgent.LearningPolicy.SARSA
-
-    
-    app = MarioRLUI(env,
-                    q_estimator,
-                    action_policy,
-                    action_set,
-                    learning_policy)
-    app.unsupervised()
     app.main_loop()
     env.close()
