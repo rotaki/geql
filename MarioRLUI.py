@@ -1,9 +1,9 @@
 import getch
+import os
 import sys
 import signal
 import time
 import imageio
-import os
 
 import gym
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
@@ -19,10 +19,6 @@ import impl.GBoostedQEstimator as GBQ
 import numpy as np
 import pandas as pd
 
-from StateCollector import PretrainingAgent
-from MakeCluster import Cluster
-from StateEncodingParams import StateEncodingParams
-
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
@@ -32,7 +28,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  action_set,
                  learning_policy = MarioRLAgent.LearningPolicy.SARSA,
                  action_interval = 10,
-                 pretraining = False,
                  clustering_method = "kmeans",
                  n_clusters = 40,
                  sample_collect_interval=2,
@@ -46,7 +41,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             action_set,
             learning_policy,
             action_interval,
-            self)
+            )
         self.rl_agent.render_option = MarioRLAgent.RenderOption.ActionFrames
         self.paused = False
         self.verbose = False
@@ -71,9 +66,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                                                           ma_width=100)
             
         self.training_stats.plot()
-
-        if pretraining:
-            self.training_stats.close()
             
         signal.signal(signal.SIGINT, self.make_signal_handler())
 
@@ -153,20 +145,39 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 print('Training... (Ctrl-C to pause and return to menu)')
                 self.train()
             elif char == 's':
-                if self.verbose:
-                    print('M(c, a) table:')
                 self.step()
                 if self.verbose:
-                    sep = '+'
-                    action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.cluster.show_action_count().astype('int'),
-                                                  columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
-                                                  index = range(self.n_clusters))
-                    print(action_count_table)
+                    if self.rl_agent.action_policy.c != 0:
+                        print('M(c, a) table:')
+                        sep = '+'
+                        action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.c.show_action_count().astype('int'),
+                                                          columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
+                                                          index = range(self.n_clusters))
+                        print(action_count_table)
+                    else:
+                        print("no cluster yet")
                 
             elif char == 'q':
                 if self.confirm_quit():
                     self.should_quit = True
                     break
+            elif char == 'x':
+                print('Kmeans training... (Ctrl-C to pause and return to menu)')
+                self.kmeans_train()
+
+            elif char == 'y':
+                self.kmeans_step()
+                if self.verbose:
+                    if self.rl_agent.action_policy.c != 0:
+                        print('M(c, a) table:')
+                        sep = '+'
+                        action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.c.show_action_count().astype('int'),
+                                                          columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
+                                                          index = range(self.n_clusters))
+                        print(action_count_table)
+                    else:
+                        print("no cluster yet")
+
 
     def toggle_verbose(self):
         self.verbose = not self.verbose
@@ -194,6 +205,14 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def step(self):
         self.rl_agent.step()
 
+    def kmeans_train(self):
+        self.paused = False
+        while not self.paused:
+            self.rl_agent.kmeans_step()
+
+    def kmeans_step(self):
+        self.rl_agent.kmeans_step()
+
     def confirm_quit(self):
         try:
             print('Are you sure you would like to quit (Y)?')
@@ -211,46 +230,33 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         writer.close()
         print('Saved episode animation to {}'.format(filename))
 
-    def pretraining(self):
-        # Store pretraining states
-        if not os.path.exists("pretraining_states_ds{}_pi{}.npz".format(self.resize_factor, self.pixel_intensity)):
-            from pathlib import Path
-            Path('pretraining_states_ds{}_pi{}.npz'.format(self.resize_factor, self.pixel_intensity)).touch()
-            np.savez_compressed("./pretraining_states_ds{}_pi{}.npz".format(self.resize_factor, self.pixel_intensity), [-1])
-
-        # Remove cluster image file if there
-        if os.path.exists("cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity)):
-            import shutil
-            shutil.rmtree("cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity))
-
-        # Create a new one
-        os.makedirs("./cluster_img_ds{}_pi{}".format(self.resize_factor, self.pixel_intensity))
-
-        encoding_info = StateEncodingParams(default_shape = self.rl_agent.env.observation_space.shape,
-                                            resize_factor=self.resize_factor,
-                                            pixel_intensity=self.pixel_intensity)
-        # steps/sample_collect_interval >= n_clusters
+    # def pretraining(self):
+       
+    #     encoding_info = StateEncodingParams(default_shape = self.rl_agent.env.observation_space.shape,
+    #                                         resize_factor=self.resize_factor,
+    #                                         pixel_intensity=self.pixel_intensity)
+    #     # steps/sample_collect_interval >= n_clusters
         
-        TA = PretrainingAgent(environment=self.rl_agent.env,
-                              q_estimator=self.q_estimator,
-                              action_policy=self.rl_agent.action_policy,
-                              action_set = self.rl_agent.action_set,
-                              action_interval=self.rl_agent.action_interval,
-                              clustering_method=self.clustering_method,
-                              n_clusters = self.n_clusters,
-                              sample_collect_interval=self.sample_collect_interval,
-                              state_encoding_params=encoding_info)
+    #     TA = PretrainingAgent(environment=self.rl_agent.env,
+    #                           q_estimator=self.q_estimator,
+    #                           action_policy=self.rl_agent.action_policy,
+    #                           action_set = self.rl_agent.action_set,
+    #                           action_interval=self.rl_agent.action_interval,
+    #                           clustering_method=self.clustering_method,
+    #                           n_clusters = self.n_clusters,
+    #                           sample_collect_interval=self.sample_collect_interval,
+    #                           state_encoding_params=encoding_info)
         
-        C = Cluster(state_encoding_params = encoding_info,
-                    action_space_size=self.rl_agent.env.action_space.n,
-                    clustering_method=self.clustering_method,
-                    n_clusters=self.n_clusters)
+    #     C = Cluster(state_encoding_params = encoding_info,
+    #                 action_space_size=self.rl_agent.env.action_space.n,
+    #                 clustering_method=self.clustering_method,
+    #                 n_clusters=self.n_clusters)
 
-        pretraining_states = TA.get_pretraining_states()
-        if pretraining_states.shape[0] < self.n_clusters:
-            raise ValueError("Number of collected state is too small!!")
-        C.cluster(pretraining_states)
-        return C
+    #     pretraining_states = TA.get_pretraining_states()
+    #     if pretraining_states.shape[0] < self.n_clusters:
+    #         raise ValueError("Number of collected state is too small!!")
+    #     C.cluster(pretraining_states)
+    #     return C
 
             
 if __name__ == '__main__':
@@ -280,21 +286,20 @@ if __name__ == '__main__':
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
 
-    app = MarioRLUI(env,
-                    q_estimator,
-                    action_policy,
-                    action_set,
-                    learning_policy,
-                    pretraining=True)
+    # app = MarioRLUI(env,
+    #                 q_estimator,
+    #                 action_policy,
+    #                 action_set,
+    #                 learning_policy,
+    #                 pretraining=True)
     
-    cluster = app.pretraining()
+    # cluster = app.pretraining()
     
-    # save cluster image to ./cluster_img
-    cluster.save_cluster_image()
+    # # save cluster image to ./cluster_img
+    # cluster.save_cluster_image()
         
     action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1,
-                                                   cluster=cluster)
+                                                   epsilon=0.1,)
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,

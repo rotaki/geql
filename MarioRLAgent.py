@@ -9,6 +9,11 @@ import TrainingStats as TS
 import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.TabularQEstimator as TabQ
 
+
+from MakeCluster import MakeCluster
+from InternalReward import InternalReward
+from StateEncodingParams import StateEncodingParams
+
 class LearningPolicy(Enum):
     Q = 0
     SARSA = 1
@@ -76,7 +81,26 @@ class MarioRLAgent:
                  action_set,
                  learning_policy=LearningPolicy.Q,
                  action_interval = 6,
-                 listener=None):
+                 listener=None,
+                 batch_size=64,
+                 default_shape = (240, 256),
+                 resize_factor = 8,
+                 pixel_intensity = 32,
+                 clustering_method="kmeans",
+                 n_clusters=20,
+                 sample_collect_interval=2):
+
+        state_encoding_params = StateEncodingParams(default_shape,
+                                                    resize_factor,
+                                                    pixel_intensity)
+        
+        self.c = MakeCluster(state_encoding_params,
+                             clustering_method,
+                             n_clusters,
+                             sample_collect_interval)
+
+        self.ir = InternalReward()
+                             
         self.env = environment
         self.q_estimator = q_estimator
         self.action_policy = action_policy
@@ -86,6 +110,7 @@ class MarioRLAgent:
         self.learning_policy = learning_policy
         self.listener = listener
         self.current_episode = 0
+        self.batch_size = batch_size
         self.render_option = RenderOption.ActionFrames
         self.game_over = True
         self.episode_done = True
@@ -93,6 +118,8 @@ class MarioRLAgent:
         self.hsep = '================================================================================'
         self.kill_timer = 10        
         self.sa_sequence = []
+
+        self.n_steps = 0
 
     def next_episode(self):
         self.time_start = time.monotonic()
@@ -109,6 +136,23 @@ class MarioRLAgent:
         self.frames = 0
         self.sa_sequence = []
         self.episode_done = False
+
+    def kmeans_next_episode(self):
+        self.time_start = time.monotonic()
+        self.current_episode += 1
+        if self.verbose:
+            print('Starting episode {}'.format(self.current_episode))
+        if self.game_over:
+            self.state = self.env.reset()
+            self.game_over = False
+        self.q_estimator.episode_start(self.state.copy())
+        self.action = self.action_policy.get_action(self.state, self.q_estimator)
+        self.max_x = 0
+        self.time_max_x = 0
+        self.frames = 0
+        self.sa_sequence = []
+        self.episode_done = False
+
 
     def best_action(self, state):
         """
@@ -239,6 +283,134 @@ class MarioRLAgent:
 
         if self.verbose:
             print(self.hsep)
+
+
+    def kmeans_step(self):
+        if self.episode_done:
+            self.kmeans_next_episode()
+
+        if self.verbose:
+            print(self.hsep)
+
+        self.n_steps += 1
+        
+        accumulated_reward = 0
+        
+
+        # Take the pending action for the next n frames
+        for frame in range(self.action_interval):
+            self.sa_sequence.append((self.state, self.action))
+            next_state, reward, self.game_over, info = self.env.step(self.action)
+            self.episode_done = self.game_over
+                        
+            if info['x_pos'] > 60000:
+                print('Warning: Ignoring insane x_pos {}'.format(info['x_pos']))
+            elif info['x_pos'] > self.max_x:
+                self.max_x = info['x_pos']
+                self.time_max_x = info['time']
+            elif info['time'] + self.kill_timer < self.time_max_x:
+                # Kill mario if standing still too long
+                reward = -15
+                self.game_over = True
+                self.episode_done = True
+
+            # Terminate the episode on death-signal
+            if reward <= -15:
+                self.episode_done = True
+
+            # Teriminate the game on finishing the level
+            if info['flag_get']:
+                self.game_over = True
+                self.episode_done = True
+                
+            accumulated_reward += reward
+                
+            if self.render_option == RenderOption.All:
+                self.env.render()
+            
+            if self.verbose:
+                is_action_frame = frame == self.action_interval - 1
+                print('\nFrame: {} Action frame: {}'.
+                      format(self.frames, is_action_frame))
+                print('\t {:14} {}'.format('reward', reward))
+                print('\t {:14} {}'.format('acc. reward', accumulated_reward))
+                print('\t {:14} {}'.format('episode done', self.episode_done))
+                print('\t {:14} {}'.format('game over', self.game_over))
+                for key, value in info.items():
+                    print('\t {:14} {}'.format(key, value))
+                print('\t {:14} {}'.format('max x', self.max_x))
+                print('\t {:14} {}'.format('time max x', self.time_max_x))
+                
+            self.frames += 1
+    
+            if self.episode_done:
+                break
+
+        #INTERNAL REWARD
+        internal_reward =  self.ir.internal_reward(next_state)
+        print(accumulated_reward, internal_reward)
+        accumulated_reward += internal_reward
+
+        #COLLECT STATE
+        self.c.collect_state(next_state, self.n_steps)
+        
+        if self.render_option == RenderOption.ActionFrames:
+            self.env.render()
+            
+        if self.episode_done: # next_state is terminal
+            self.q_estimator.record_transition(action=self.action,
+                                               reward=accumulated_reward,
+                                               state=next_state.copy(),
+                                               terminal=True,
+                                               lp_action=None)
+            
+            self.q_estimator.episode_finished()
+            self.action_policy.episode_finished()
+
+            # Kmeans 
+            if (self.c.kmeans(self.current_episode, self.batch_size)):
+                self.ir.initialize_cluster_model(self.c)
+                self.action_policy.initialize_cluster_model(self.c)
+                
+            # Record fitness variables
+            # Important: stop timer *after* batch-updates for fair FPS-comparison
+            time_elapsed = time.monotonic() - self.time_start
+            # Listener
+            if self.listener is not None:
+                self.listener.episode_finished(
+                    self.current_episode,
+                    time_elapsed,
+                    400 - self.time_max_x,
+                    self.frames,
+                    self.max_x,
+                    self.sa_sequence
+                )
+
+        else: # next_state is *not* terminal
+            next_action = self.action_policy.get_action(next_state, self.q_estimator)
+            
+            if self.verbose:
+                print('\n' + self.format_all_q_values(next_state, next_action))
+            
+            if self.learning_policy == LearningPolicy.SARSA:
+                lp_action = next_action
+            elif self.learning_policy == LearningPolicy.Q:
+                lp_action = None
+
+            self.q_estimator.record_transition(action=self.action,
+                                               reward=accumulated_reward,
+                                               state=next_state.copy(),
+                                               terminal=False,
+                                               lp_action=lp_action)
+
+            # We *must* copy state (which is of type ndarray), otherwise, we
+            # just get a reference to the mutating state
+            self.state = next_state.copy()
+            self.action = next_action
+
+        if self.verbose:
+            print(self.hsep)
+
 
 
 if __name__ == '__main__':
