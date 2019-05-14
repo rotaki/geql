@@ -34,7 +34,9 @@ class IMarioRLAgentListener:
                          wall_time_elapsed,
                          game_time_elapsed,
                          n_frames,
-                         fitness):
+                         fitness,
+                         sa_sequence
+    ):
         """
         Called by MarioRLAgent every time an episode finishes
 
@@ -52,6 +54,8 @@ class IMarioRLAgentListener:
         fitness : numeric
             Fitness value as defined by the MarioRLAgent implementation, where
             higher is better
+        sa_sequence : (state, action)
+            List of the entire episode as state, action-pairs
 
         Returns
         -------
@@ -83,21 +87,27 @@ class MarioRLAgent:
         self.listener = listener
         self.current_episode = 0
         self.render_option = RenderOption.ActionFrames
+        self.game_over = True
         self.episode_done = True
         self.verbose = False
         self.hsep = '================================================================================'
+        self.kill_timer = 10        
+        self.sa_sequence = []
 
     def next_episode(self):
         self.time_start = time.monotonic()
         self.current_episode += 1
         if self.verbose:
             print('Starting episode {}'.format(self.current_episode))
-        self.state = self.env.reset()
+        if self.game_over:
+            self.state = self.env.reset()
+            self.game_over = False
         self.q_estimator.episode_start(self.state.copy())
         self.action = self.action_policy.get_action(self.state, self.q_estimator)
         self.max_x = 0
         self.time_max_x = 0
         self.frames = 0
+        self.sa_sequence = []
         self.episode_done = False
 
     def best_action(self, state):
@@ -128,26 +138,35 @@ class MarioRLAgent:
         if self.verbose:
             print(self.hsep)
 
-        done = False
         accumulated_reward = 0
         
         # Take the pending action for the next n frames
         for frame in range(self.action_interval):
-            next_state, reward, done, info = self.env.step(self.action)
-
-            # Record fitness
-            if info['x_pos'] > self.max_x:
-                if info['x_pos'] > 60000:
-                    print('Warning: Ignoring insane x_pos {}'.format(info['x_pos']))
-                else:
-                    self.max_x = info['x_pos']
-                    self.time_max_x = info['time']
-                                
-            accumulated_reward += reward
+            self.sa_sequence.append((self.state, self.action))
+            next_state, reward, self.game_over, info = self.env.step(self.action)
+            self.episode_done = self.game_over
+                        
+            if info['x_pos'] > 60000:
+                print('Warning: Ignoring insane x_pos {}'.format(info['x_pos']))
+            elif info['x_pos'] > self.max_x:
+                self.max_x = info['x_pos']
+                self.time_max_x = info['time']
+            elif info['time'] + self.kill_timer < self.time_max_x:
+                # Kill mario if standing still too long
+                reward = -15
+                self.game_over = True
+                self.episode_done = True
 
             # Terminate the episode on death-signal
-            if reward == -15:
-                done = True
+            if reward <= -15:
+                self.episode_done = True
+
+            # Teriminate the game on finishing the level
+            if info['flag_get']:
+                self.game_over = True
+                self.episode_done = True
+                
+            accumulated_reward += reward
 
             if self.render_option == RenderOption.All:
                 self.env.render()
@@ -158,7 +177,8 @@ class MarioRLAgent:
                       format(self.frames, is_action_frame))
                 print('\t {:14} {}'.format('reward', reward))
                 print('\t {:14} {}'.format('acc. reward', accumulated_reward))
-                print('\t {:14} {}'.format('done', done))
+                print('\t {:14} {}'.format('episode done', self.episode_done))
+                print('\t {:14} {}'.format('game over', self.game_over))
                 for key, value in info.items():
                     print('\t {:14} {}'.format(key, value))
                 print('\t {:14} {}'.format('max x', self.max_x))
@@ -166,15 +186,13 @@ class MarioRLAgent:
                 
             self.frames += 1
     
-            if done:
+            if self.episode_done:
                 break
         
         if self.render_option == RenderOption.ActionFrames:
             self.env.render()
             
-        if done: # next_state is terminal
-            self.episode_done = True
-
+        if self.episode_done: # next_state is terminal
             self.q_estimator.record_transition(action=self.action,
                                                reward=accumulated_reward,
                                                state=next_state.copy(),
@@ -193,7 +211,9 @@ class MarioRLAgent:
                     time_elapsed,
                     400 - self.time_max_x,
                     self.frames,
-                    self.max_x)
+                    self.max_x,
+                    self.sa_sequence
+                )
 
         else: # next_state is *not* terminal
             next_action = self.action_policy.get_action(next_state, self.q_estimator)
@@ -211,7 +231,6 @@ class MarioRLAgent:
                                                state=next_state.copy(),
                                                terminal=False,
                                                lp_action=lp_action)
-
 
             # We *must* copy state (which is of type ndarray), otherwise, we
             # just get a reference to the mutating state

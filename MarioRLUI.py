@@ -1,6 +1,9 @@
 import getch
 import sys
 import signal
+import time
+import imageio
+import os
 
 import gym
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
@@ -10,6 +13,7 @@ import MarioRLAgent
 import TrainingStats
 
 import impl.EpsilonGreedyActionPolicy as EGAP
+import impl.ClusterEpsilonGreedyActionPolicy as CEGAP
 import impl.TabularQEstimator as TabQ
 import impl.GBoostedQEstimator as GBQ
 import numpy as np
@@ -18,7 +22,6 @@ import pandas as pd
 from StateCollector import PretrainingAgent
 from MakeCluster import Cluster
 from StateEncodingParams import StateEncodingParams
-import os
 
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
@@ -48,6 +51,13 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.paused = False
         self.verbose = False
         self.should_quit = False
+
+        self.ask_movie = False
+        self.best_fitness = 0
+        self.best_time = float('inf')
+
+        self.output_dir = 'output_{}/'.format(time.strftime('%Y-%m-%d_%H%M%S'))
+        os.mkdir(self.output_dir)
         
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters if n_clusters is not None else n_clusters
@@ -82,19 +92,50 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                          wall_time_elapsed,
                          game_time_elapsed,
                          n_frames,
-                         fitness):
+                         fitness,
+                         sa_sequence):
         self.training_stats.add_episode_stats(wall_time_elapsed,
                                               game_time_elapsed,
                                               n_frames,
                                               fitness)
+
+        if (fitness == self.best_fitness and game_time_elapsed < self.best_time) or \
+           fitness > self.best_fitness:
+            self.best_fitness = fitness
+            self.best_time = game_time_elapsed
+            self.make_movie(sa_sequence,
+                            self.output_dir + 'best_f{}_t{}_e{}.mp4'.format(
+                                fitness, game_time_elapsed, episode_number))
+        elif self.ask_movie:
+            while True:
+                print('Export movie of last episode? (Y/N)')
+                try:
+                    char = getch.getch()
+                except OverflowError:
+                    print('Invalid input')
+                    continue
+
+                if char == 'y' or char == 'Y':
+                    self.make_movie(sa_sequence,
+                                    self.output_dir +
+                                    'recording_f{}_t{}_e{}.mp4'.format(
+                                        fitness, game_time_elapsed, episode_number))
+                    break
+                elif char =='n' or char == 'N':
+                    print('No movie exported')
+                    break
+                else:
+                    print('Invalid input')
+                    
         self.training_stats.plot()
         
     def main_loop(self):
         while not self.should_quit:
-            print('\nMarioRL: [(v)erbose: {}] [(r)endering: {}]'.
+            print('\nMarioRL: [(v)erbose: {}] [(r)endering: {}] [re(c)ording: {}]'.
                   format(
                       self.verbose,
-                      str(self.rl_agent.render_option)
+                      str(self.rl_agent.render_option),
+                      'Ask each episode' if self.ask_movie else 'Best'
                   ))
             print('Commands: (t)rain (s)tep (q)uit')
             try:
@@ -106,20 +147,21 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 self.toggle_verbose()
             elif char == 'r':
                 self.toggle_rendering()
+            elif char == 'c':
+                self.toggle_recording()
             elif char == 't':
                 print('Training... (Ctrl-C to pause and return to menu)')
                 self.train()
             elif char == 's':
-                print('M(c, a) table:')
+                if self.verbose:
+                    print('M(c, a) table:')
                 self.step()
-                sep = '+'
-
-
-
-                action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.cluster.show_action_count().astype('int'),
+                if self.verbose:
+                    sep = '+'
+                    action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.cluster.show_action_count().astype('int'),
                                                   columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
                                                   index = range(self.n_clusters))
-                print(action_count_table)
+                    print(action_count_table)
                 
             elif char == 'q':
                 if self.confirm_quit():
@@ -141,6 +183,9 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         else:
             raise RuntimeError('Unknown render option')
 
+    def toggle_recording(self):
+        self.ask_movie = not self.ask_movie
+        
     def train(self):
         self.paused = False
         while not self.paused:
@@ -156,6 +201,15 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             return char == 'y' or char == 'Y'
         except OverflowError:
             return False
+
+    def make_movie(self, sa_sequence, filename):
+        frames = []
+        writer = imageio.get_writer(filename, fps=60.0, quality=10.0)
+        for (s, a) in sa_sequence:
+            writer.append_data(s)
+
+        writer.close()
+        print('Saved episode animation to {}'.format(filename))
 
     def pretraining(self):
         # Store pretraining states
@@ -197,7 +251,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             raise ValueError("Number of collected state is too small!!")
         C.cluster(pretraining_states)
         return C
-         
 
             
 if __name__ == '__main__':
@@ -207,30 +260,25 @@ if __name__ == '__main__':
     action_set = COMPLEX_MOVEMENT
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
-
-
     
     action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1,
-                                                   cluster=None)
+                                                   epsilon=0.1)
     
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0,
-                                                   cluster=None)
+                                                   epsilon=0)
     
     learning_policy = MarioRLAgent.LearningPolicy.SARSA
 
-        # q_estimator = TabQ.TabularQEstimator(discount=0.5,
+    # q_estimator = TabQ.TabularQEstimator(discount=0.5,
     #                                      steps=10,
     #                                      learning_rate=0.1,
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
-    q_estimator = GBQ.GBoostedQEstimator(discount=0.5,
-                                         steps=10000,
-                                         learning_rate=0.2,
+    q_estimator = GBQ.GBoostedQEstimator(discount=0.9,
+                                         steps=30,
+                                         learning_rate=0.5,
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
-
 
     app = MarioRLUI(env,
                     q_estimator,
@@ -244,23 +292,13 @@ if __name__ == '__main__':
     # save cluster image to ./cluster_img
     cluster.save_cluster_image()
         
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0.1,
                                                    cluster=cluster)
-    
-    greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0,
-                                                   cluster=cluster)
-    
-    learning_policy = MarioRLAgent.LearningPolicy.SARSA
-
-    
-    
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,
                     action_set,
                     learning_policy)
-
     app.main_loop()
     env.close()

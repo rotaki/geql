@@ -26,8 +26,12 @@ class GBoostedQEstimator(IQEstimator):
                  learning_rate,
                  learning_policy,
                  q_action_policy):
-        
-        self.trajectory = []
+
+        self.trajectories = []
+        self.n_trajectories = 0
+        self.initial_trajectories_per_regressor = 64
+        self.trajectories_per_regressor = self.initial_trajectories_per_regressor
+        self.max_trajectories_per_regressor = 1024
         self.estimators = dict()
         self.discount = discount
         self.learning_rate = learning_rate
@@ -60,28 +64,25 @@ class GBoostedQEstimator(IQEstimator):
         else:
             return self.estimators[action].estimate(state_dmatrix)
 
-#    def estimate_preprocessed_state(self, state, action):
-#        return 0.0
-
     def batch_estimate(self, state, actions):
-        # TODO: Reshaping
         state_dmatrix = xgboost.DMatrix(self.shape_state(state))
         return list(map(
             lambda a: (a, self.estimate_dmatrix(state_dmatrix, a)),
             actions))
 
     def episode_start(self, initial_state):
-        self.trajectory = Trajectory(initial_state)
+        self.trajectories.append(Trajectory(initial_state))
+        self.n_trajectories += 1
         self.sa_tuple_count = 0
         if self.verbose:
             print('Initial state s=<{:x}>'.format(hash(initial_state.tobytes()) % self.hashmod))
 
     def record_transition(self, action, reward, state, terminal, lp_action):
-        self.trajectory.add_transition(action,
-                                       reward,
-                                       state,
-                                       terminal,
-                                       lp_action)
+        self.trajectories[self.n_trajectories - 1].add_transition(action,
+                                                            reward,
+                                                             state,
+                                                             terminal,
+                                                             lp_action)
         if self.verbose:
             print('Record #{}: a={}, r={}, s\'=<{:x}>{}, a\'={}'.format(
                 self.sa_tuple_count,
@@ -98,31 +99,42 @@ class GBoostedQEstimator(IQEstimator):
     
         
     def episode_finished(self):
-        # Get Q(s, a) observations for this episode
-        if self.learning_policy == MarioRLAgent.LearningPolicy.Q:
-            sa_tuples = self.trajectory.q_episode_backup(self.discount,
-                                                         self.steps,
-                                                         self,
-                                                         self.q_action_policy)
-        elif self.learning_policy == MarioRLAgent.LearningPolicy.SARSA:
-            sa_tuples = self.trajectory.sarsa_episode_backup(self.discount,
-                                                             self.steps,
-                                                             self)
-        else:
-            raise NotImplementedError('Unknown learning policy')
-
-        # State size
-        state_size = self.shape_state(sa_tuples[0].state).size        
-        # Calculate residuals grouped by action
+        # Do nothing unless we have the trajectories
+        if self.n_trajectories < self.trajectories_per_regressor:
+            print('{}/{} trajectories finished for next regressor'.format(self.n_trajectories,
+                                                                              self.trajectories_per_regressor))
+            return
+        print('{}/{} training regressor...'.format(self.n_trajectories, self.trajectories_per_regressor))
         residuals_by_action = dict()
-        if self.verbose:
-            print('Calculating residuals by action')
-        for sa_tuple in sa_tuples:
-            residual = self.estimate(sa_tuple.state, sa_tuple.action) - sa_tuple.q
-            if sa_tuple.action not in residuals_by_action:
-                residuals_by_action[sa_tuple.action] = list()
-            residuals_by_action[sa_tuple.action].append((sa_tuple.state,
-                                          self.estimate(sa_tuple.state, sa_tuple.action) - sa_tuple.q))
+
+        # Process the trajectories one by one
+        for trajectory in self.trajectories:
+            # Get Q(s, a) observations for this episode
+            if self.learning_policy == MarioRLAgent.LearningPolicy.Q:
+                sa_tuples = trajectory.q_episode_backup(self.discount,
+                                                             self.steps,
+                                                             self,
+                                                             self.q_action_policy)
+            elif self.learning_policy == MarioRLAgent.LearningPolicy.SARSA:
+                sa_tuples = trajectory.sarsa_episode_backup(self.discount,
+                                                                 self.steps,
+                                                                 self)
+            else:
+                raise NotImplementedError('Unknown learning policy')
+
+            # State size
+            state_size = self.shape_state(sa_tuples[0].state).size        
+            # Calculate residuals grouped by action
+
+            if self.verbose:
+                print('Calculating residuals by action')
+            for sa_tuple in sa_tuples:
+                if sa_tuple.action not in residuals_by_action:
+                    residuals_by_action[sa_tuple.action] = list()
+                residuals_by_action[sa_tuple.action].append(
+                    (self.shape_state(sa_tuple.state),
+                     self.estimate(sa_tuple.state, sa_tuple.action) - sa_tuple.q)
+                )
 
         for (action, residuals) in residuals_by_action.items():
             n = len(residuals)
@@ -132,38 +144,47 @@ class GBoostedQEstimator(IQEstimator):
             target_vector = np.empty([n, 1])
             residual_squared = 0
             for i, residual in enumerate(residuals):
-                state_matrix[i] = self.shape_state(residual[0])
+                state_matrix[i] = residual[0]
                 target_vector[i] = -residual[1] # We want to train h to cancel out the residual
-                if self.verbose:
-                    residual_squared += residual[1] * residual[1]
-            if self.verbose:
-                residual_squared /= n
-                residual_squared = np.sqrt(residual_squared)
-                print('Prior rmse for action {}: {}'.format(action, residual_squared))
+                residual_squared += residual[1] * residual[1]
+            
+            residual_squared /= n
+            residual_squared = np.sqrt(residual_squared)
+            print('Prior rmse for action {}: {}'.format(action, residual_squared))
             dmatrix = xgboost.DMatrix(state_matrix, target_vector)
-            params = dict([
-                ('max_depth', 2),
-#                ('gpu_id', 0),
-#                ('max_bin', 16),
-#                ('tree_method', 'gpu_hist'),
-#                ('verbosity', 1)
-            ])
+            if self.trajectories_per_regressor == self.max_trajectories_per_regressor:
+                params = dict([
+                    ('max_depth', 5),
+                    #('gpu_id', 0),
+                    #('tree_method', 'gpu_exact'),
+                  
+                ])
+            else:
+                params = dict([
+                    ('max_depth', 3)
+                    #('gpu_id', 0),
+                    #('tree_method', 'gpu_exact')
+                ])
             evallist = [(dmatrix, 'action-{}'.format(action))]
-            if self.verbose:
-                print('Training regressor for action {}. n={}'.format(action, n))
-            booster = xgboost.train(params, dmatrix, evals=evallist, verbose_eval=self.verbose)
+            print('Training regressor for action {}. n={}'.format(action, n))
+            booster = xgboost.train(params, dmatrix, evals=evallist, verbose_eval=True)
 
             # Add the booster to the set of regressors for the action
             if action not in self.estimators:
                 self.estimators[action] = ActionEstimator()
             self.estimators[action].add_regressor(self.learning_rate, booster.copy())
 
+        # Discard the trajectories that were used
+        self.n_trajectories = 0
+        self.trajectories = []
+        self.trajectories_per_regressor = min(self.max_trajectories_per_regressor,
+                                              2 * self.trajectories_per_regressor)
+
     def shape_state(self, state):
         """
         Returns a copy of state suitable for storing over longer time
         (downsampled to "final" size, compressed etc
         """
-        # TODO: Compression/downsampling ?
         i = Image.fromarray(state)
 
         # Conver to grayscale
@@ -175,7 +196,6 @@ class GBoostedQEstimator(IQEstimator):
                      resample=Image.NEAREST)
 
         # Flatten into 1d array
-        #return state.copy().reshape(-1)
         return np.array(i).reshape(1, -1)
 
 
