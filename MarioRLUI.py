@@ -13,6 +13,7 @@ import MarioRLAgent
 import TrainingStats
 
 import impl.EpsilonGreedyActionPolicy as EGAP
+import impl.ClusterEpsilonGreedyActionPolicy as CEGAP
 import impl.TabularQEstimator as TabQ
 import impl.GBoostedQEstimator as GBQ
 import numpy as np
@@ -152,16 +153,15 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 print('Training... (Ctrl-C to pause and return to menu)')
                 self.train()
             elif char == 's':
-                print('M(c, a) table:')
+                if self.verbose:
+                    print('M(c, a) table:')
                 self.step()
-                sep = '+'
-
-
-
-                action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.cluster.show_action_count().astype('int'),
+                if self.verbose:
+                    sep = '+'
+                    action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.cluster.show_action_count().astype('int'),
                                                   columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
                                                   index = range(self.n_clusters))
-                print(action_count_table)
+                    print(action_count_table)
                 
             elif char == 'q':
                 if self.confirm_quit():
@@ -260,20 +260,16 @@ if __name__ == '__main__':
     action_set = COMPLEX_MOVEMENT
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
-
-
     
     action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1,
-                                                   cluster=None)
+                                                   epsilon=0.1)
     
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0,
-                                                   cluster=None)
+                                                   epsilon=0)
     
     learning_policy = MarioRLAgent.LearningPolicy.SARSA
 
-        # q_estimator = TabQ.TabularQEstimator(discount=0.5,
+    # q_estimator = TabQ.TabularQEstimator(discount=0.5,
     #                                      steps=10,
     #                                      learning_rate=0.1,
     #                                      learning_policy=learning_policy,
@@ -283,7 +279,6 @@ if __name__ == '__main__':
                                          learning_rate=0.5,
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
-
 
     app = MarioRLUI(env,
                     q_estimator,
@@ -297,18 +292,9 @@ if __name__ == '__main__':
     # save cluster image to ./cluster_img
     cluster.save_cluster_image()
         
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0.1,
                                                    cluster=cluster)
-    
-    greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0,
-                                                   cluster=cluster)
-    
-    learning_policy = MarioRLAgent.LearningPolicy.SARSA
-
-    
-    
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,

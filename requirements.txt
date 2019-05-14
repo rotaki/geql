@@ -6,3 +6,4 @@ xgboost
 imageio
 imageio-ffmpeg
 pandas
+sklearn
