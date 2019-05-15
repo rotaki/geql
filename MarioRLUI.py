@@ -75,6 +75,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
 
         self.output_dir = 'output_{}/'.format(time.strftime('%Y-%m-%d_%H%M%S'))
         os.mkdir(self.output_dir)
+
+        self.sync_interval = 5000
         
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters if n_clusters is not None else n_clusters
@@ -149,6 +151,12 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             self.training_stats.print_stats()
         else:
             self.training_stats.plot()
+
+        # Always sync first episode to get early indication on error
+        if episode_number % self.sync_interval == 0 or episode_number == 1:
+            if self.headless:
+                self.make_snapshot()
+                self.sync_home()
         
     def main_loop(self):
         while not self.should_quit:
