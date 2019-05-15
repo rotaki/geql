@@ -32,7 +32,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  n_clusters = 40,
                  sample_collect_interval=2,
                  resize_factor=8,
-                 pixel_intensity=32):
+                 pixel_intensity=32,
+                 clustering = 0):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
@@ -59,6 +60,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.sample_collect_interval = sample_collect_interval
         self.resize_factor = resize_factor
         self.pixel_intensity = pixel_intensity
+
+        self.clustering = clustering
 
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
                                                           action_policy.summary(),
@@ -129,7 +132,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                       str(self.rl_agent.render_option),
                       'Ask each episode' if self.ask_movie else 'Best'
                   ))
-            print('Commands: (t)rain (s)tep (q)uit (x)kmeans_train (y)kmeans_step')
+            print('Commands: (t)rain (s)tep (q)uit')
             try:
                 char = getch.getch()
             except OverflowError:
@@ -161,22 +164,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 if self.confirm_quit():
                     self.should_quit = True
                     break
-            elif char == 'x':
-                print('Kmeans training... (Ctrl-C to pause and return to menu)')
-                self.kmeans_train()
-
-            elif char == 'y':
-                self.kmeans_step()
-                if self.verbose:
-                    if self.rl_agent.action_policy.c != 0:
-                        print('M(c, a) table:')
-                        sep = '+'
-                        action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.c.show_action_count().astype('int'),
-                                                          columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
-                                                          index = range(self.n_clusters))
-                        print(action_count_table)
-                    else:
-                        print("no cluster yet")
 
 
     def toggle_verbose(self):
@@ -199,20 +186,21 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         
     def train(self):
         self.paused = False
-        while not self.paused:
-            self.rl_agent.step()
+        if (self.clustering == 0):
+            print("Normal")
+            while not self.paused:
+                self.rl_agent.step()
+        elif (self.clustering == 1):
+            print("Kmeans")
+            while not self.paused:
+                self.rl_agent.kmeans_step()
 
     def step(self):
-        self.rl_agent.step()
-
-    def kmeans_train(self):
-        self.paused = False
-        while not self.paused:
+        if (self.clustering == 0):
+            self.rl_agent.step()
+        elif (self.clustering == 1):
             self.rl_agent.kmeans_step()
-
-    def kmeans_step(self):
-        self.rl_agent.kmeans_step()
-
+            
     def confirm_quit(self):
         try:
             print('Are you sure you would like to quit (Y)?')
@@ -262,6 +250,7 @@ if __name__ == '__main__':
                     q_estimator,
                     action_policy,
                     action_set,
-                    learning_policy)
+                    learning_policy,
+                    clustering=1)
     app.main_loop()
     env.close()
