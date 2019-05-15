@@ -26,23 +26,34 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  q_estimator,
                  action_policy,
                  action_set,
-                 learning_policy = MarioRLAgent.LearningPolicy.SARSA,
-                 action_interval = 10,
+                 action_interval = 6,
+                 batch_size = 64,
                  clustering_method = "kmeans",
                  n_clusters = 40,
-                 sample_collect_interval=2,
-                 resize_factor=8,
-                 pixel_intensity=32,
-                 clustering = 0):
+                 default_shape = (240, 256),
+                 sample_collect_interval = 2,
+                 resize_factor = 8,
+                 pixel_intensity = 32,
+                 clustering = 0,
+                 learning_policy = MarioRLAgent.LearningPolicy.SARSA):
+        
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
             self.q_estimator,
             action_policy,
             action_set,
-            learning_policy,
-            action_interval,
-            )
+            action_interval = action_interval,
+            listener = self,
+            batch_size = batch_size,
+            clustering_method = clustering_method,
+            n_clusters = n_clusters,
+            default_shape = default_shape,
+            sample_collect_interval = sample_collect_interval,
+            resize_factor = resize_factor,
+            pixel_intensity = pixel_intensity,
+            learning_policy=learning_policy)
+        
         self.rl_agent.render_option = MarioRLAgent.RenderOption.ActionFrames
         self.paused = False
         self.verbose = False
@@ -153,7 +164,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                     if self.rl_agent.action_policy.c != 0:
                         print('M(c, a) table:')
                         sep = '+'
-                        action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.c.show_action_count().astype('int'),
+                        action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.show_action_count().astype('int'),
                                                           columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
                                                           index = range(self.n_clusters))
                         print(action_count_table)
@@ -250,7 +261,6 @@ if __name__ == '__main__':
                     q_estimator,
                     action_policy,
                     action_set,
-                    learning_policy,
                     clustering=1)
     app.main_loop()
     env.close()

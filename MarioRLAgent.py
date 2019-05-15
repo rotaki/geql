@@ -79,16 +79,16 @@ class MarioRLAgent:
                  q_estimator,
                  action_policy,
                  action_set,
-                 learning_policy=LearningPolicy.Q,
-                 action_interval = 6,
-                 listener=None,
-                 batch_size=64,
-                 default_shape = (240, 256),
-                 resize_factor = 8,
-                 pixel_intensity = 32,
-                 clustering_method="kmeans",
-                 n_clusters=30,
-                 sample_collect_interval=2):
+                 action_interval,
+                 listener,
+                 batch_size,
+                 clustering_method,
+                 n_clusters,
+                 default_shape,
+                 sample_collect_interval,
+                 resize_factor,
+                 pixel_intensity,
+                 learning_policy):
 
         state_encoding_params = StateEncodingParams(default_shape,
                                                     resize_factor,
@@ -107,10 +107,10 @@ class MarioRLAgent:
         self.action_set = action_set
         self.action_list = list(range(self.env.action_space.n))
         self.action_interval = action_interval
-        self.learning_policy = learning_policy
         self.listener = listener
         self.current_episode = 0
         self.batch_size = batch_size
+        self.learning_policy = learning_policy
         self.render_option = RenderOption.ActionFrames
         self.game_over = True
         self.episode_done = True
@@ -348,7 +348,9 @@ class MarioRLAgent:
 
         #INTERNAL REWARD
         internal_reward =  self.ir.internal_reward(next_state)
-        # print(accumulated_reward, internal_reward)
+        if self.verbose:
+            print('\t {:14} {}'.format('accumulated reward', accumulated_reward))
+            print('\t {:14} {}'.format('internal reward', internal_reward))
         accumulated_reward += internal_reward
 
         #COLLECT STATE
