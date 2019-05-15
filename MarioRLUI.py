@@ -4,6 +4,7 @@ import signal
 import time
 import imageio
 import os
+import pickle
 
 import gym
 from nes_py.wrappers import BinarySpaceToDiscreteSpaceEnv
@@ -37,7 +38,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  n_clusters = 40,
                  sample_collect_interval=2,
                  resize_factor=8,
-                 pixel_intensity=32):
+                 pixel_intensity=32,
+                 headless=False):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
@@ -47,14 +49,20 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             learning_policy,
             action_interval,
             self)
-        self.rl_agent.render_option = MarioRLAgent.RenderOption.ActionFrames
+        self.headless = headless
+        if self.headless:
+            self.rl_agent.render_option = MarioRLAgent.RenderOption.NoRender
+        else:
+            self.rl_agent.render_option = MarioRLAgent.RenderOption.ActionFrames
         self.paused = False
         self.verbose = False
         self.should_quit = False
-
+        
+        
         self.ask_movie = False
         self.best_fitness = 0
         self.best_time = float('inf')
+        self.last_episode_finished = 0
 
         self.output_dir = 'output_{}/'.format(time.strftime('%Y-%m-%d_%H%M%S'))
         os.mkdir(self.output_dir)
@@ -69,8 +77,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                                                           action_policy.summary(),
                                                           learning_policy.describe(),
                                                           ma_width=100)
-            
-        self.training_stats.plot()
+        if not self.headless:
+            self.training_stats.plot()
 
         if pretraining:
             self.training_stats.close()
@@ -94,6 +102,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                          n_frames,
                          fitness,
                          sa_sequence):
+        self.last_episode_finished = episode_number
         self.training_stats.add_episode_stats(wall_time_elapsed,
                                               game_time_elapsed,
                                               n_frames,
@@ -126,8 +135,12 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                     break
                 else:
                     print('Invalid input')
-                    
-        self.training_stats.plot()
+
+        self.training_stats.export(self.output_dir + 'training_stats.txt')
+        if self.headless:
+            self.training_stats.print_stats()
+        else:
+            self.training_stats.plot()
         
     def main_loop(self):
         while not self.should_quit:
@@ -137,7 +150,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                       str(self.rl_agent.render_option),
                       'Ask each episode' if self.ask_movie else 'Best'
                   ))
-            print('Commands: (t)rain (s)tep (q)uit')
+            print('Commands: (t)rain, (s)tep, (q)uit, sna(p)shot')
             try:
                 char = getch.getch()
             except OverflowError:
@@ -152,6 +165,9 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             elif char == 't':
                 print('Training... (Ctrl-C to pause and return to menu)')
                 self.train()
+            elif char == 'p':
+                self.make_snapshot()
+                self.sync_home()
             elif char == 's':
                 if self.verbose:
                     print('M(c, a) table:')
@@ -174,7 +190,10 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.q_estimator.verbose = self.verbose
 
     def toggle_rendering(self):
-        if self.rl_agent.render_option == MarioRLAgent.RenderOption.NoRender:
+        if self.headless:
+            # Force norender
+            self.rl_agent.render_option = MarioRLAgent.RenderOption.NoRender
+        elif self.rl_agent.render_option == MarioRLAgent.RenderOption.NoRender:
             self.rl_agent.render_option = MarioRLAgent.RenderOption.ActionFrames
         elif self.rl_agent.render_option == MarioRLAgent.RenderOption.ActionFrames:
             self.rl_agent.render_option = MarioRLAgent.RenderOption.All
@@ -202,6 +221,17 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         except OverflowError:
             return False
 
+    def make_snapshot(self):
+        filename = self.output_dir + 'snapshot_e{}.dat'.format(
+            self.last_episode_finished)
+        pickle.dump(self, open(filename, 'wb'))
+        print('Snapshot saved to {}'.format(filename))
+
+    def sync_home(self):
+        rsync_command = 'rsync -avRzq {} mario@portalgatan.mynetgear.com:.'.format(
+            self.output_dir[:-1]) # Omit the trailing slash for rsync
+        os.system(rsync_command)
+        
     def make_movie(self, sa_sequence, filename):
         frames = []
         writer = imageio.get_writer(filename, fps=60.0, quality=10.0)
@@ -262,7 +292,9 @@ if __name__ == '__main__':
     action_list = list(range(env.action_space.n))
     
     action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1)
+                                                   epsilon=0.1,
+                                                   decay_factor = 0.5,
+                                                   decay_interval = 10000)
     
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0)
@@ -280,21 +312,21 @@ if __name__ == '__main__':
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
 
-    app = MarioRLUI(env,
-                    q_estimator,
-                    action_policy,
-                    action_set,
-                    learning_policy,
-                    pretraining=True)
+    #app = MarioRLUI(env,
+    #                q_estimator,
+    #                action_policy,
+    #                action_set,
+    #                learning_policy,
+    #                pretraining=True)
     
-    cluster = app.pretraining()
+    #cluster = app.pretraining()
     
     # save cluster image to ./cluster_img
-    cluster.save_cluster_image()
+    #cluster.save_cluster_image()
         
-    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1,
-                                                   cluster=cluster)
+    #action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
+    #                                               epsilon=0.1,
+    #                                               cluster=cluster)
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,

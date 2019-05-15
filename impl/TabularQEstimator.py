@@ -3,6 +3,7 @@ from Trajectory import *
 import MarioRLAgent
 import numpy as np
 import zlib
+import pickle
 from PIL import Image
 
 import time
@@ -157,3 +158,9 @@ class TabularQEstimator (IQEstimator):
         
         # Compress what's left
         return zlib.compress(i.tobytes(), self.compression)
+
+    def save(self, filename):
+        pickle.dump(self, open(filename, 'wb'))
+
+    def from_file(filename):
+        return pickle.load(open(filename, 'rb'))

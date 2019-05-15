@@ -29,9 +29,9 @@ class GBoostedQEstimator(IQEstimator):
 
         self.trajectories = []
         self.n_trajectories = 0
-        self.initial_trajectories_per_regressor = 64
+        self.initial_trajectories_per_regressor = 256
         self.trajectories_per_regressor = self.initial_trajectories_per_regressor
-        self.max_trajectories_per_regressor = 1024
+        self.max_trajectories_per_regressor = 2048
         self.estimators = dict()
         self.discount = discount
         self.learning_rate = learning_rate

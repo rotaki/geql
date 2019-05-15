@@ -32,7 +32,33 @@ class TrainingStats:
         # Normalize the rest of the elements
         convolved[w-1:len(x)] /= w
         return convolved[0:len(x)]
-    
+
+    def export(self, filename):
+        episode_number = list(range(1, self.n_episodes + 1))
+        table = np.column_stack([episode_number,
+                                 self.episode_fitness,
+                                 self.episode_game_time,
+                                 self.episode_time,
+                                 self.episode_frame_count])
+        np.savetxt(filename, table,
+                   header='episode_number game_time wall_time frame_count')
+
+    def print_stats(self, filename):
+        # TODO A bit overkill to calculate MA for the entire sequence when we only
+        # want the last
+        ma = TrainingStats.moving_average(self.episode_fitness, self.ma_width)
+        fps = self.frame_count[-1] / self.episode_time[-1]
+        print('Episode #{} stats: fitness={} (MA{}={}), game_time={}, fps={}, frame_count={}, wall_time={}'.format(
+            self.n_episodes,
+            self.episode_fitness[-1],
+            self.ma_width,
+            ma[-1],
+            self.episode_game_time[-1],
+            fps,
+            self.frame_count[-1],
+            self.episode_time[-1]
+        ))
+        
     def add_episode_stats(self, real_time_elapsed, game_time_elapsed, frames, fitness):
         self.episode_time.append(real_time_elapsed)
         self.episode_game_time.append(game_time_elapsed)
