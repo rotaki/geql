@@ -4,5 +4,5 @@ echo "Copying ssh key to server (use server password)"
 ssh-copy-id mario@portalgatan.mynetgear.com
 sudo apt update
 # sudo apt upgrade -y
-sudo apt install ffmpeg python3-pip
+sudo apt install -y ffmpeg python3-pip
 pip3 install -r requirements.txt
