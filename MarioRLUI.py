@@ -298,6 +298,6 @@ if __name__ == '__main__':
                     q_estimator,
                     action_policy,
                     action_set,
-                    clustering=1)
+                    clustering=0)
     app.main_loop()
     env.close()
