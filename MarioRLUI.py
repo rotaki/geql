@@ -25,6 +25,7 @@ import pandas as pd
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
                  environment,
+                 learning_policy,
                  q_estimator,
                  action_policy,
                  action_set,
@@ -37,7 +38,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  resize_factor = 8,
                  pixel_intensity = 32,
                  clustering = 0,
-                 learning_policy = MarioRLAgent.LearningPolicy.SARSA,
                  headless=True):
         
         self.q_estimator = q_estimator if q_estimator is not None else None
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0)
     
-    learning_policy = MarioRLAgent.LearningPolicy.SARSA
+    learning_policy = MarioRLAgent.LearningPolicy.Q
 
     # q_estimator = TabQ.TabularQEstimator(discount=0.5,
     #                                      steps=10,
@@ -288,16 +288,18 @@ if __name__ == '__main__':
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
     q_estimator = GBQ.GBoostedQEstimator(discount=0.9,
-                                         steps=30,
+                                         steps=1,
                                          learning_rate=0.5,
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
     
     
     app = MarioRLUI(env,
+                    learning_policy,
                     q_estimator,
                     action_policy,
                     action_set,
-                    clustering=0)
+                    clustering=0,
+                    headless=True)
     app.main_loop()
     env.close()
