@@ -40,22 +40,28 @@ class TrainingStats:
                                  self.episode_game_time,
                                  self.episode_time,
                                  self.episode_frame_count])
-        np.savetxt(filename, table,
-                   header='episode_number game_time wall_time frame_count')
+        np.savetxt(filename,
+                   table,
+                   fmt=['%d',
+                        '%.2f',
+                        '%d',
+                        '%.5f',
+                        '%d'],
+                   header='episode_number episode_fitness game_time wall_time frame_count')
 
-    def print_stats(self, filename):
+    def print_stats(self):
         # TODO A bit overkill to calculate MA for the entire sequence when we only
         # want the last
         ma = TrainingStats.moving_average(self.episode_fitness, self.ma_width)
-        fps = self.frame_count[-1] / self.episode_time[-1]
-        print('Episode #{} stats: fitness={} (MA{}={}), game_time={}, fps={}, frame_count={}, wall_time={}'.format(
+        fps = self.episode_frame_count[-1] / self.episode_time[-1]
+        print('Episode #{} stats: fitness={} (MA{}={}), game_time={}, fps={}, frame_count={}, wall_time={}\n'.format(
             self.n_episodes,
             self.episode_fitness[-1],
             self.ma_width,
             ma[-1],
             self.episode_game_time[-1],
             fps,
-            self.frame_count[-1],
+            self.episode_frame_count[-1],
             self.episode_time[-1]
         ))
         

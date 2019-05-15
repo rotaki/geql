@@ -39,7 +39,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  sample_collect_interval=2,
                  resize_factor=8,
                  pixel_intensity=32,
-                 headless=False):
+                 headless=True):
         self.q_estimator = q_estimator if q_estimator is not None else None
         self.rl_agent = MarioRLAgent.MarioRLAgent(
             environment,
