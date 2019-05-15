@@ -96,7 +96,8 @@ class MakeCluster(EncodeState, DecodeState):
                 self.cluster(self.collected_pretraining_states)
                 # If you want to save the cluster_center image
                 # self.save_cluster_image()
-                self.save_collected_states()
+                # self.save_collected_states()
+                self.collected_pretraining_states =[]
                 return 1
             else:
                 print("number of unique samples: too small. resume")

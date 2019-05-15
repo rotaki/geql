@@ -129,7 +129,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                       str(self.rl_agent.render_option),
                       'Ask each episode' if self.ask_movie else 'Best'
                   ))
-            print('Commands: (t)rain (s)tep (q)uit')
+            print('Commands: (t)rain (s)tep (q)uit (x)kmeans_train (y)kmeans_step')
             try:
                 char = getch.getch()
             except OverflowError:
@@ -230,34 +230,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         writer.close()
         print('Saved episode animation to {}'.format(filename))
 
-    # def pretraining(self):
-       
-    #     encoding_info = StateEncodingParams(default_shape = self.rl_agent.env.observation_space.shape,
-    #                                         resize_factor=self.resize_factor,
-    #                                         pixel_intensity=self.pixel_intensity)
-    #     # steps/sample_collect_interval >= n_clusters
-        
-    #     TA = PretrainingAgent(environment=self.rl_agent.env,
-    #                           q_estimator=self.q_estimator,
-    #                           action_policy=self.rl_agent.action_policy,
-    #                           action_set = self.rl_agent.action_set,
-    #                           action_interval=self.rl_agent.action_interval,
-    #                           clustering_method=self.clustering_method,
-    #                           n_clusters = self.n_clusters,
-    #                           sample_collect_interval=self.sample_collect_interval,
-    #                           state_encoding_params=encoding_info)
-        
-    #     C = Cluster(state_encoding_params = encoding_info,
-    #                 action_space_size=self.rl_agent.env.action_space.n,
-    #                 clustering_method=self.clustering_method,
-    #                 n_clusters=self.n_clusters)
-
-    #     pretraining_states = TA.get_pretraining_states()
-    #     if pretraining_states.shape[0] < self.n_clusters:
-    #         raise ValueError("Number of collected state is too small!!")
-    #     C.cluster(pretraining_states)
-    #     return C
-
             
 if __name__ == '__main__':
     # Set up the model
@@ -266,9 +238,8 @@ if __name__ == '__main__':
     action_set = COMPLEX_MOVEMENT
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
-    
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1)
+
+    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,epsilon=0.1)
     
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0)
@@ -285,21 +256,8 @@ if __name__ == '__main__':
                                          learning_rate=0.5,
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
-
-    # app = MarioRLUI(env,
-    #                 q_estimator,
-    #                 action_policy,
-    #                 action_set,
-    #                 learning_policy,
-    #                 pretraining=True)
     
-    # cluster = app.pretraining()
     
-    # # save cluster image to ./cluster_img
-    # cluster.save_cluster_image()
-        
-    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1,)
     app = MarioRLUI(env,
                     q_estimator,
                     action_policy,

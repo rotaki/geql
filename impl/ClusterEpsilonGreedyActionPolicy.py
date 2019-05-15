@@ -6,7 +6,8 @@ class ClusterEpsilonGreedyActionPolicy (IActionPolicy):
     def __init__(self, actions, epsilon):
         self.epsilon = epsilon
         self.actions = actions
-        self.c = 0
+        self.c = None
+        self.action_counter = None
 
     def initialize_cluster_model(self, cluster_model):
         self.c = cluster_model
@@ -19,7 +20,10 @@ class ClusterEpsilonGreedyActionPolicy (IActionPolicy):
         return temp
 
     def show_action_count(self):
-        return self.action_counter
+        if self.action_counter is not None:
+            return self.action_counter
+        else:
+            return
 
     # Returns action count of a cluster
     def action_count(self, cluster):
@@ -33,7 +37,7 @@ class ClusterEpsilonGreedyActionPolicy (IActionPolicy):
     def get_action(self, state, q_estimator):
         if random.random() < self.epsilon:
             # Choose randomly
-            if self.c != 0:
+            if self.c is not None:
                 mask = self.gibbs_action_count(self.c.predict_state_cluster(state))
                 action_choice = np.random.choice(self.actions, p=mask)
                 self.add_action_count(self.c.predict_state_cluster(state), action_choice)
@@ -47,7 +51,7 @@ class ClusterEpsilonGreedyActionPolicy (IActionPolicy):
             best_v = max(action_values, key=lambda av: av[1])[1]
             candidates = list(filter(lambda av: av[1] == best_v, action_values))
             chosen = random.choice(candidates)
-            if self.c != 0:
+            if self.c is not None:
                 self.add_action_count(self.c.predict_state_cluster(state), chosen[0])
             return chosen[0]
 

@@ -87,7 +87,7 @@ class MarioRLAgent:
                  resize_factor = 8,
                  pixel_intensity = 32,
                  clustering_method="kmeans",
-                 n_clusters=20,
+                 n_clusters=30,
                  sample_collect_interval=2):
 
         state_encoding_params = StateEncodingParams(default_shape,
@@ -348,7 +348,7 @@ class MarioRLAgent:
 
         #INTERNAL REWARD
         internal_reward =  self.ir.internal_reward(next_state)
-        print(accumulated_reward, internal_reward)
+        # print(accumulated_reward, internal_reward)
         accumulated_reward += internal_reward
 
         #COLLECT STATE
