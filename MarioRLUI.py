@@ -18,7 +18,7 @@ import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.ClusterEpsilonGreedyActionPolicy as CEGAP
 import impl.TabularQEstimator as TabQ
 import impl.GBoostedQEstimator as GBQ
-import impl.AgressiveDSPolicy as ADSP
+import impl.AggressiveDSPolicy as ADSP
 import numpy as np
 import pandas as pd
 
@@ -275,7 +275,7 @@ if __name__ == '__main__':
                                                 pixel_intensity=8)
 
         
-    action_policy = ADSP.AgressiveDSPolicy(actions=action_list,
+    action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
                                            epsilon=0.1,
                                            state_encoding_params = state_encoding_params)
 
