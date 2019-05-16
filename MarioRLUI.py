@@ -18,9 +18,11 @@ import impl.EpsilonGreedyActionPolicy as EGAP
 import impl.ClusterEpsilonGreedyActionPolicy as CEGAP
 import impl.TabularQEstimator as TabQ
 import impl.GBoostedQEstimator as GBQ
+import impl.AgressiveDSPolicy as ADSP
 import numpy as np
 import pandas as pd
 
+from StateEncodingParams import StateEncodingParams
 
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
@@ -28,15 +30,15 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  q_estimator,
                  action_policy,
                  action_set,
+                 clustering_method,
                  action_interval = 6,
                  batch_size = 64,
-                 clustering_method = "kmeans",
+                 state_encoding_params = StateEncodingParams(default_shape=(240, 256),
+                                                             resize_factor=8,
+                                                             pixel_intensity=8,
+                                                             compression=8),
                  n_clusters = 40,
-                 default_shape = (240, 256),
                  sample_collect_interval = 2,
-                 resize_factor = 8,
-                 pixel_intensity = 32,
-                 clustering = 0,
                  learning_policy = MarioRLAgent.LearningPolicy.SARSA,
                  headless=True):
         
@@ -49,12 +51,10 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             action_interval = action_interval,
             listener = self,
             batch_size = batch_size,
+            state_encoding_params = state_encoding_params,
             clustering_method = clustering_method,
             n_clusters = n_clusters,
-            default_shape = default_shape,
             sample_collect_interval = sample_collect_interval,
-            resize_factor = resize_factor,
-            pixel_intensity = pixel_intensity,
             learning_policy=learning_policy)
 
         self.headless = headless
@@ -66,8 +66,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.paused = False
         self.verbose = False
         self.should_quit = False
-        
-        
         self.ask_movie = False
         self.best_fitness = 0
         self.best_time = float('inf')
@@ -79,11 +77,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters if n_clusters is not None else n_clusters
         self.sample_collect_interval = sample_collect_interval
-        self.resize_factor = resize_factor
-        self.pixel_intensity = pixel_intensity
-
-        self.clustering = clustering
-
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
                                                           action_policy.summary(),
                                                           learning_policy.describe(),
@@ -218,20 +211,13 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         
     def train(self):
         self.paused = False
-        if (self.clustering == 0):
-            print("Normal")
-            while not self.paused:
-                self.rl_agent.step()
-        elif (self.clustering == 1):
-            print("Kmeans")
-            while not self.paused:
-                self.rl_agent.kmeans_step()
+        while not self.paused:
+            self.rl_agent.step()
+                    
 
     def step(self):
-        if (self.clustering == 0):
-            self.rl_agent.step()
-        elif (self.clustering == 1):
-            self.rl_agent.kmeans_step()
+        self.rl_agent.step()
+        
             
     def confirm_quit(self):
         try:
@@ -264,23 +250,34 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             
 if __name__ == '__main__':
     # Set up the model
-    
+
     env = gym_smb.make('SuperMarioBros-v0')
     action_set = COMPLEX_MOVEMENT
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-                                                   epsilon=0.1,
-                                                   decay_factor = 0.5,
-                                                   decay_interval = 10000)
+    # action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+    #                                                epsilon=0.1,
+    #                                                decay_factor = 0.5,
+    #                                                decay_interval = 10000)
 
-#    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,epsilon=0.1)
+    # action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,epsilon=0.1)
 
-    
+    state_encoding_params = StateEncodingParams(default_shape=(240, 256),
+                                                resize_factor=8,
+                                                pixel_intensity=8)
+
+        
+    action_policy = ADSP.AgressiveDSPolicy(actions=action_list,
+                                           epsilon=0.1,
+                                           state_encoding_params = state_encoding_params)
+
+
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0)
-    
+
+
     learning_policy = MarioRLAgent.LearningPolicy.SARSA
+
 
     # q_estimator = TabQ.TabularQEstimator(discount=0.5,
     #                                      steps=10,
@@ -298,6 +295,7 @@ if __name__ == '__main__':
                     q_estimator,
                     action_policy,
                     action_set,
-                    clustering=0)
+                    clustering_method = "agressive_ds")
+
     app.main_loop()
     env.close()
