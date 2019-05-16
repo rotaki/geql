@@ -1,6 +1,7 @@
 from PIL import Image
 from PIL import ImageFilter
 import numpy as np
+import zlib
 
 """
 * encode state for training + predicting(States are optimized for different learning methods)

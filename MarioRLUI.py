@@ -40,13 +40,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                                                              compression=8),
                  n_clusters = 40,
                  sample_collect_interval = 2,
-<<<<<<< HEAD
-                 learning_policy = MarioRLAgent.LearningPolicy.SARSA,
-=======
-                 resize_factor = 8,
-                 pixel_intensity = 32,
-                 clustering = 0,
->>>>>>> a648a337dda69c16aeb353399a26aebb3237659e
                  headless=True):
         
         self.q_estimator = q_estimator if q_estimator is not None else None
@@ -289,14 +282,8 @@ if __name__ == '__main__':
 
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0)
-<<<<<<< HEAD
-
 
     learning_policy = MarioRLAgent.LearningPolicy.SARSA
-=======
-    
-    learning_policy = MarioRLAgent.LearningPolicy.Q
->>>>>>> a648a337dda69c16aeb353399a26aebb3237659e
 
 
     # q_estimator = TabQ.TabularQEstimator(discount=0.5,
@@ -316,12 +303,8 @@ if __name__ == '__main__':
                     q_estimator,
                     action_policy,
                     action_set,
-<<<<<<< HEAD
-                    clustering_method = "agressive_ds")
-
-=======
-                    clustering=0,
+                    clustering_method = "agressive_ds",
                     headless=True)
->>>>>>> a648a337dda69c16aeb353399a26aebb3237659e
+    
     app.main_loop()
     env.close()

@@ -14,11 +14,12 @@ class AgressiveDSPolicy(IActionPolicy):
         return self.action_counter
 
     def encode_state(self, state):
-        return EncodeState.encode_state(clustering_method="agressive_ds",
+        return EncodeState().encode_state(clustering_method="agressive_ds",
                                         state=state,
                                         state_encoding_params=self.s_e_p)
 
     def add_action_count(self, encoded_state, action):
+        import pdb; pdb.set_trace()
         self.action_counter[encoded_state][action] += 1
 
     def gibbs_action_count(self, encoded_state):
@@ -32,8 +33,8 @@ class AgressiveDSPolicy(IActionPolicy):
 
     def get_action(self, state, q_estimator):
         encoded_state = self.encode_state(state)
-        if random.random < self.epsilon:
-            mask = gibbs_action_count(encoded_state)
+        if random.random() < self.epsilon:
+            mask = self.gibbs_action_count(encoded_state)
             action_choice = np.random.choice(self.actions, p=mask)
             self.add_action_count(encoded_state, action_choice)
             return action_choice
@@ -43,8 +44,7 @@ class AgressiveDSPolicy(IActionPolicy):
             best_v = max(action_values, key=lambda av: av[1])[1]
             candidates = list(filter(lambda av: av[1] == best_v, action_values))
             chosen = random.choice(candidates)
-            if self.c is not None:
-                self.add_action_count(encoded_state, chosen[0])
+            self.add_action_count(encoded_state, chosen[0])
             return chosen[0]
 
     def summary(self):
