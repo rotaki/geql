@@ -27,6 +27,7 @@ from StateEncodingParams import StateEncodingParams
 class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
     def __init__(self,
                  environment,
+                 learning_policy,
                  q_estimator,
                  action_policy,
                  action_set,
@@ -39,7 +40,13 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                                                              compression=8),
                  n_clusters = 40,
                  sample_collect_interval = 2,
+<<<<<<< HEAD
                  learning_policy = MarioRLAgent.LearningPolicy.SARSA,
+=======
+                 resize_factor = 8,
+                 pixel_intensity = 32,
+                 clustering = 0,
+>>>>>>> a648a337dda69c16aeb353399a26aebb3237659e
                  headless=True):
         
         self.q_estimator = q_estimator if q_estimator is not None else None
@@ -73,6 +80,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
 
         self.output_dir = 'output_{}/'.format(time.strftime('%Y-%m-%d_%H%M%S'))
         os.mkdir(self.output_dir)
+
+        self.sync_interval = 5000
         
         self.clustering_method = clustering_method
         self.n_clusters = n_clusters if n_clusters is not None else n_clusters
@@ -142,6 +151,12 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             self.training_stats.print_stats()
         else:
             self.training_stats.plot()
+
+        # Always sync first episode to get early indication on error
+        if episode_number % self.sync_interval == 0 or episode_number == 1:
+            if self.headless:
+                self.make_snapshot()
+                self.sync_home()
         
     def main_loop(self):
         while not self.should_quit:
@@ -274,9 +289,14 @@ if __name__ == '__main__':
 
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0)
+<<<<<<< HEAD
 
 
     learning_policy = MarioRLAgent.LearningPolicy.SARSA
+=======
+    
+    learning_policy = MarioRLAgent.LearningPolicy.Q
+>>>>>>> a648a337dda69c16aeb353399a26aebb3237659e
 
 
     # q_estimator = TabQ.TabularQEstimator(discount=0.5,
@@ -285,17 +305,23 @@ if __name__ == '__main__':
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
     q_estimator = GBQ.GBoostedQEstimator(discount=0.9,
-                                         steps=30,
+                                         steps=1,
                                          learning_rate=0.5,
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
     
     
     app = MarioRLUI(env,
+                    learning_policy,
                     q_estimator,
                     action_policy,
                     action_set,
+<<<<<<< HEAD
                     clustering_method = "agressive_ds")
 
+=======
+                    clustering=0,
+                    headless=True)
+>>>>>>> a648a337dda69c16aeb353399a26aebb3237659e
     app.main_loop()
     env.close()
