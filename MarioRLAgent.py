@@ -87,7 +87,7 @@ class MarioRLAgent:
                  n_clusters,
                  sample_collect_interval,
                  learning_policy):
-        
+        self.clustering_method = clustering_method
         self.c = MakeCluster(state_encoding_params,
                              clustering_method,
                              n_clusters,
@@ -125,28 +125,12 @@ class MarioRLAgent:
             self.game_over = False
         self.q_estimator.episode_start(self.state.copy())
         self.action = self.action_policy.get_action(self.state, self.q_estimator)
+        self.start_x = None
         self.max_x = 0
         self.time_max_x = 0
         self.frames = 0
         self.sa_sequence = []
         self.episode_done = False
-
-    def kmeans_next_episode(self):
-        self.time_start = time.monotonic()
-        self.current_episode += 1
-        if self.verbose:
-            print('Starting episode {}'.format(self.current_episode))
-        if self.game_over:
-            self.state = self.env.reset()
-            self.game_over = False
-        self.q_estimator.episode_start(self.state.copy())
-        self.action = self.action_policy.get_action(self.state, self.q_estimator)
-        self.max_x = 0
-        self.time_max_x = 0
-        self.frames = 0
-        self.sa_sequence = []
-        self.episode_done = False
-
 
     def best_action(self, state):
         """
@@ -168,120 +152,10 @@ class MarioRLAgent:
             result_str = result_str + '\t {:2} {:20} {} {}{} \n'.format(
                 i, str(self.action_set[a]), v, append_best, append_selected)
         return result_str
-    
+
     def step(self):
         if self.episode_done:
             self.next_episode()
-
-        if self.verbose:
-            print(self.hsep)
-
-        accumulated_reward = 0
-        
-        # Take the pending action for the next n frames
-        for frame in range(self.action_interval):
-            self.sa_sequence.append((self.state, self.action))
-            next_state, reward, self.game_over, info = self.env.step(self.action)
-            self.episode_done = self.game_over
-                        
-            if info['x_pos'] > 60000:
-                print('Warning: Ignoring insane x_pos {}'.format(info['x_pos']))
-            elif info['x_pos'] > self.max_x:
-                self.max_x = info['x_pos']
-                self.time_max_x = info['time']
-            elif info['time'] + self.kill_timer < self.time_max_x:
-                # Kill mario if standing still too long
-                reward = -15
-                self.game_over = True
-                self.episode_done = True
-
-            # Terminate the episode on death-signal
-            if reward <= -15:
-                self.episode_done = True
-
-            # Teriminate the game on finishing the level
-            if info['flag_get']:
-                self.game_over = True
-                self.episode_done = True
-                
-            accumulated_reward += reward
-
-            if self.render_option == RenderOption.All:
-                self.env.render()
-            
-            if self.verbose:
-                is_action_frame = frame == self.action_interval - 1
-                print('\nFrame: {} Action frame: {}'.
-                      format(self.frames, is_action_frame))
-                print('\t {:14} {}'.format('reward', reward))
-                print('\t {:14} {}'.format('acc. reward', accumulated_reward))
-                print('\t {:14} {}'.format('episode done', self.episode_done))
-                print('\t {:14} {}'.format('game over', self.game_over))
-                for key, value in info.items():
-                    print('\t {:14} {}'.format(key, value))
-                print('\t {:14} {}'.format('max x', self.max_x))
-                print('\t {:14} {}'.format('time max x', self.time_max_x))
-                
-            self.frames += 1
-    
-            if self.episode_done:
-                break
-        
-        if self.render_option == RenderOption.ActionFrames:
-            self.env.render()
-            
-        if self.episode_done: # next_state is terminal
-            self.q_estimator.record_transition(action=self.action,
-                                               reward=accumulated_reward,
-                                               state=next_state.copy(),
-                                               terminal=True,
-                                               lp_action=None)
-            
-            self.q_estimator.episode_finished()
-            self.action_policy.episode_finished()
-            # Record fitness variables
-            # Important: stop timer *after* batch-updates for fair FPS-comparison
-            time_elapsed = time.monotonic() - self.time_start
-            # Listener
-            if self.listener is not None:
-                self.listener.episode_finished(
-                    self.current_episode,
-                    time_elapsed,
-                    400 - self.time_max_x,
-                    self.frames,
-                    self.max_x,
-                    self.sa_sequence
-                )
-
-        else: # next_state is *not* terminal
-            next_action = self.action_policy.get_action(next_state, self.q_estimator)
-            
-            if self.verbose:
-                print('\n' + self.format_all_q_values(next_state, next_action))
-            
-            if self.learning_policy == LearningPolicy.SARSA:
-                lp_action = next_action
-            elif self.learning_policy == LearningPolicy.Q:
-                lp_action = None
-
-            self.q_estimator.record_transition(action=self.action,
-                                               reward=accumulated_reward,
-                                               state=next_state.copy(),
-                                               terminal=False,
-                                               lp_action=lp_action)
-
-            # We *must* copy state (which is of type ndarray), otherwise, we
-            # just get a reference to the mutating state
-            self.state = next_state.copy()
-            self.action = next_action
-
-        if self.verbose:
-            print(self.hsep)
-
-
-    def kmeans_step(self):
-        if self.episode_done:
-            self.kmeans_next_episode()
 
         if self.verbose:
             print(self.hsep)
@@ -299,14 +173,18 @@ class MarioRLAgent:
                         
             if info['x_pos'] > 60000:
                 print('Warning: Ignoring insane x_pos {}'.format(info['x_pos']))
-            elif info['x_pos'] > self.max_x:
-                self.max_x = info['x_pos']
-                self.time_max_x = info['time']
-            elif info['time'] + self.kill_timer < self.time_max_x:
-                # Kill mario if standing still too long
-                reward = -15
-                self.game_over = True
-                self.episode_done = True
+            else:
+                if self.start_x is None:
+                    self.start_x = info['x_pos']
+
+                if info['x_pos'] > self.max_x:
+                    self.max_x = info['x_pos']
+                    self.time_max_x = info['time']
+                elif info['time'] + self.kill_timer < self.time_max_x:
+                    # Kill mario if standing still too long
+                    reward = -15
+                    self.game_over = True
+                    self.episode_done = True
 
             # Terminate the episode on death-signal
             if reward <= -15:
@@ -332,6 +210,7 @@ class MarioRLAgent:
                 print('\t {:14} {}'.format('game over', self.game_over))
                 for key, value in info.items():
                     print('\t {:14} {}'.format(key, value))
+                print('\t {:14} {}'.format('start x', self.start_x))
                 print('\t {:14} {}'.format('max x', self.max_x))
                 print('\t {:14} {}'.format('time max x', self.time_max_x))
                 
@@ -340,15 +219,16 @@ class MarioRLAgent:
             if self.episode_done:
                 break
 
+        if self.clustering_method == 'kmeans':
         #INTERNAL REWARD
-        internal_reward =  self.ir.internal_reward(next_state)
-        if self.verbose:
-            print('\t {:14} {}'.format('accumulated reward', accumulated_reward))
-            print('\t {:14} {}'.format('internal reward', internal_reward))
-        accumulated_reward += internal_reward
+            internal_reward =  self.ir.internal_reward(next_state)
+            if self.verbose:
+                print('\t {:14} {}'.format('accumulated reward', accumulated_reward))
+                print('\t {:14} {}'.format('internal reward', internal_reward))
+                accumulated_reward += internal_reward
 
-        #COLLECT STATE
-        self.c.collect_state(next_state, self.n_steps)
+                #COLLECT STATE
+                self.c.collect_state(next_state, self.n_steps)
         
         if self.render_option == RenderOption.ActionFrames:
             self.env.render()
@@ -363,10 +243,11 @@ class MarioRLAgent:
             self.q_estimator.episode_finished()
             self.action_policy.episode_finished()
 
-            # Kmeans 
-            if (self.c.kmeans(self.current_episode, self.batch_size)):
-                self.ir.initialize_cluster_model(self.c)
-                self.action_policy.initialize_cluster_model(self.c)
+            if self.clustering_method == 'kmeans':
+                # Kmeans 
+                if (self.c.kmeans(self.current_episode, self.batch_size)):
+                    self.ir.initialize_cluster_model(self.c)
+                    self.action_policy.initialize_cluster_model(self.c)
                 
             # Record fitness variables
             # Important: stop timer *after* batch-updates for fair FPS-comparison
@@ -376,7 +257,8 @@ class MarioRLAgent:
                 self.listener.episode_finished(
                     self.current_episode,
                     time_elapsed,
-                    400 - self.time_max_x,
+                    # Add time penalty for starting at the checkpoint
+                    (400 - self.time_max_x) + (100 if (self.start_x is not None and self.start_x > 100) else 0),
                     self.frames,
                     self.max_x,
                     self.sa_sequence
@@ -406,44 +288,3 @@ class MarioRLAgent:
 
         if self.verbose:
             print(self.hsep)
-
-
-
-if __name__ == '__main__':
-    print('Starting MarioRLAgent *without* UI. This is a debugging mode and' +
-          ' probably not what you want unless you know what you\'re doing')
-
-    class PlotOnlyListener(IMarioRLAgentListener):
-        def __init__(self, q_estimator, action_policy, learning_policy):
-            self.training_stats = \
-                TS.TrainingStats(q_estimator,
-                                 action_policy,
-                                 'Learning policy: {}'.
-                                 format(LearningPolicy.describe(learning_policy)))
-            self.training_stats.plot()
-
-        def episode_finished(self,
-                             episode_number,
-                             wall_time_elapsed,
-                             game_time_elapsed,
-                             n_frames,
-                             fitness):
-            self.training_stats.add_episode_stats(
-                wall_time_elapsed,
-                game_time_elapsed,
-                n_frames,
-                fitness)
-            self.training_stats.plot()
-
-    action_set = RIGHT_ONLY
-    env = gym_smb.make('SuperMarioBros-v0')
-    env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
-    action_list = list(range(env.action_space.n))
-    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list, epsilon=0.1)
-    learning_policy = LearningPolicy.SARSA
-    q_estimator = TabQ.TabularQEstimator(discount=0.5, learning_rate=0.2)
-    listener = PlotOnlyListener(q_estimator, action_policy, learning_policy)
-    agent = MarioRLAgent(env, q_estimator, action_policy, action_set, learning_policy, listener=listener)
-    for i in range(10000):
-        agent.step()
-    env.close()

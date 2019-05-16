@@ -19,7 +19,6 @@ class AgressiveDSPolicy(IActionPolicy):
                                         state_encoding_params=self.s_e_p)
 
     def add_action_count(self, encoded_state, action):
-        # import pdb; pdb.set_trace()
         if encoded_state in self.action_counter:
             self.action_counter[encoded_state][action] += 1
         else:

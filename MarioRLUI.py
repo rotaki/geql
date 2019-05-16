@@ -180,15 +180,16 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             elif char == 's':
                 self.step()
                 if self.verbose:
-                    if self.rl_agent.action_policy.c != 0:
-                        print('M(c, a) table:')
-                        sep = '+'
-                        action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.show_action_count().astype('int'),
-                                                          columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
-                                                          index = range(self.n_clusters))
-                        print(action_count_table)
-                    else:
-                        print("no cluster yet")
+                    if isinstance(self.rl_agent.action_policy, CEGAP.ClusterEpsilonGreedyActionPolicy):
+                        if self.rl_agent.action_policy.c is not None:
+                            print('M(c, a) table:')
+                            sep = '+'
+                            action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.show_action_count().astype('int'),
+                                                              columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
+                                                              index = range(self.n_clusters))
+                            print(action_count_table)
+                        else:
+                            print("no cluster yet")
                 
             elif char == 'q':
                 if self.confirm_quit():
@@ -268,16 +269,16 @@ if __name__ == '__main__':
     #                                                decay_factor = 0.5,
     #                                                decay_interval = 10000)
 
-    # action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,epsilon=0.1)
+    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,epsilon=0.1)
 
     state_encoding_params = StateEncodingParams(default_shape=(240, 256),
                                                 resize_factor=8,
                                                 pixel_intensity=8)
 
         
-    action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
-                                           epsilon=0.1,
-                                           state_encoding_params = state_encoding_params)
+    #action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
+    #                                       epsilon=0.1,
+    #                                       state_encoding_params = state_encoding_params)
 
 
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
@@ -303,7 +304,7 @@ if __name__ == '__main__':
                     q_estimator,
                     action_policy,
                     action_set,
-                    clustering_method = "agressive_ds",
+                    clustering_method = "kmeans",
                     headless=True)
     
     app.main_loop()
