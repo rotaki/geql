@@ -19,11 +19,15 @@ class AgressiveDSPolicy(IActionPolicy):
                                         state_encoding_params=self.s_e_p)
 
     def add_action_count(self, encoded_state, action):
-        import pdb; pdb.set_trace()
-        self.action_counter[encoded_state][action] += 1
+        # import pdb; pdb.set_trace()
+        if encoded_state in self.action_counter:
+            self.action_counter[encoded_state][action] += 1
+        else:
+            self.action_counter[encoded_state] = [0 for i in range(len(self.actions))]
+            self.action_counter[encoded_state][action] += 1
 
     def gibbs_action_count(self, encoded_state):
-        if self.action_counter.has_key(encoded_state):
+        if encoded_state in self.action_counter:
             temp = np.array(self.action_counter[encoded_state])
             temp = temp/np.sum(temp)
             return temp
