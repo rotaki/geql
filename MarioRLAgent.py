@@ -82,17 +82,11 @@ class MarioRLAgent:
                  action_interval,
                  listener,
                  batch_size,
+                 state_encoding_params,
                  clustering_method,
                  n_clusters,
-                 default_shape,
                  sample_collect_interval,
-                 resize_factor,
-                 pixel_intensity,
                  learning_policy):
-
-        state_encoding_params = StateEncodingParams(default_shape,
-                                                    resize_factor,
-                                                    pixel_intensity)
         
         self.c = MakeCluster(state_encoding_params,
                              clustering_method,
