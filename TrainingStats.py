@@ -4,16 +4,18 @@ import matplotlib.gridspec as gridspec
 
 class TrainingStats:
     def __init__(self, q_estimator_desc, action_policy_desc, comment=None, ma_width=20): 
-        self.comment = '' if comment is None else '\n' + comment
+        self.comment = '' if comment is None else '\t' + comment
         self.ma_width = ma_width
         self.n_episodes = 0
         self.episode_fitness = []
         self.episode_game_time = []
         self.episode_time = []
         self.episode_frame_count = []
+        self.q_estimator_desc = q_estimator_desc
+        self.action_policy_desc = action_policy_desc
         self.fig = plt.figure()
         self.fig.suptitle('$Q(s,a)$: ' + q_estimator_desc +
-                          '\n$\pi(s,a)$:' + action_policy_desc +
+                          '\t $\pi(s,a)$:' + action_policy_desc +
                           self.comment, fontsize=8)
         spec = gridspec.GridSpec(ncols = 1, nrows = 4, figure = self.fig)
         self.episode_fitness_graph = self.fig.add_subplot(spec[0:3,0])
@@ -47,7 +49,10 @@ class TrainingStats:
                         '%d',
                         '%.5f',
                         '%d'],
-                   header='episode_number episode_fitness game_time wall_time frame_count')
+                   header='episode_number episode_fitness game_time wall_time frame_count\t' +
+                   ' Q: {} P: {} Other: {}'.format(self.q_estimator_desc,
+                                                   self.action_policy_desc,
+                                                   self.comment))
 
     def print_stats(self):
         # TODO A bit overkill to calculate MA for the entire sequence when we only
