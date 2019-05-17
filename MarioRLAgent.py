@@ -81,19 +81,7 @@ class MarioRLAgent:
                  action_set,
                  action_interval,
                  listener,
-                 batch_size,
-                 state_encoding_params,
-                 clustering_method,
-                 n_clusters,
-                 sample_collect_interval,
                  learning_policy):
-        self.clustering_method = clustering_method
-        self.c = MakeCluster(state_encoding_params,
-                             clustering_method,
-                             n_clusters,
-                             sample_collect_interval)
-
-        self.ir = InternalReward()
                              
         self.env = environment
         self.q_estimator = q_estimator
@@ -103,7 +91,6 @@ class MarioRLAgent:
         self.action_interval = action_interval
         self.listener = listener
         self.current_episode = 0
-        self.batch_size = batch_size
         self.learning_policy = learning_policy
         self.render_option = RenderOption.ActionFrames
         self.game_over = True
@@ -113,7 +100,6 @@ class MarioRLAgent:
         self.kill_timer = 10        
         self.sa_sequence = []
 
-        self.n_steps = 0
 
     def next_episode(self):
         self.time_start = time.monotonic()
@@ -160,10 +146,7 @@ class MarioRLAgent:
         if self.verbose:
             print(self.hsep)
 
-        self.n_steps += 1
-        
         accumulated_reward = 0
-        
 
         # Take the pending action for the next n frames
         for frame in range(self.action_interval):
@@ -218,17 +201,6 @@ class MarioRLAgent:
     
             if self.episode_done:
                 break
-
-        if self.clustering_method == 'kmeans':
-        #INTERNAL REWARD
-            internal_reward =  self.ir.internal_reward(next_state)
-            if self.verbose:
-                print('\t {:14} {}'.format('accumulated reward', accumulated_reward))
-                print('\t {:14} {}'.format('internal reward', internal_reward))
-                accumulated_reward += internal_reward
-
-                #COLLECT STATE
-                self.c.collect_state(next_state, self.n_steps)
         
         if self.render_option == RenderOption.ActionFrames:
             self.env.render()
@@ -242,12 +214,6 @@ class MarioRLAgent:
             
             self.q_estimator.episode_finished()
             self.action_policy.episode_finished()
-
-            if self.clustering_method == 'kmeans':
-                # Kmeans 
-                if (self.c.kmeans(self.current_episode, self.batch_size)):
-                    self.ir.initialize_cluster_model(self.c)
-                    self.action_policy.initialize_cluster_model(self.c)
                 
             # Record fitness variables
             # Important: stop timer *after* batch-updates for fair FPS-comparison

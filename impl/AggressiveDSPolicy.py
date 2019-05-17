@@ -15,8 +15,8 @@ class AggressiveDSPolicy(IActionPolicy):
 
     def encode_state(self, state):
         return EncodeState().encode_state(clustering_method="agressive_ds",
-                                        state=state,
-                                        state_encoding_params=self.s_e_p)
+                                          state=state,
+                                          state_encoding_params=self.s_e_p)
 
     def add_action_count(self, encoded_state, action):
         self.action_counter[encoded_state][action] += 1

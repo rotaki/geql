@@ -31,15 +31,7 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                  q_estimator,
                  action_policy,
                  action_set,
-                 clustering_method,
                  action_interval = 6,
-                 batch_size = 64,
-                 state_encoding_params = StateEncodingParams(default_shape=(240, 256),
-                                                             resize_factor=8,
-                                                             pixel_intensity=8,
-                                                             compression=8),
-                 n_clusters = 40,
-                 sample_collect_interval = 2,
                  headless=True):
         
         self.q_estimator = q_estimator if q_estimator is not None else None
@@ -50,11 +42,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             action_set,
             action_interval = action_interval,
             listener = self,
-            batch_size = batch_size,
-            state_encoding_params = state_encoding_params,
-            clustering_method = clustering_method,
-            n_clusters = n_clusters,
-            sample_collect_interval = sample_collect_interval,
             learning_policy=learning_policy)
 
         self.headless = headless
@@ -75,10 +62,6 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         os.mkdir(self.output_dir)
 
         self.sync_interval = 5000
-        
-        self.clustering_method = clustering_method
-        self.n_clusters = n_clusters if n_clusters is not None else n_clusters
-        self.sample_collect_interval = sample_collect_interval
         self.training_stats = TrainingStats.TrainingStats(q_estimator.summary(),
                                                           action_policy.summary(),
                                                           learning_policy.describe(),
@@ -223,11 +206,9 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
         while not self.paused:
             self.rl_agent.step()
                     
-
     def step(self):
         self.rl_agent.step()
         
-            
     def confirm_quit(self):
         try:
             print('Are you sure you would like to quit (Y)?')
@@ -269,16 +250,18 @@ if __name__ == '__main__':
     #                                                decay_factor = 0.5,
     #                                                decay_interval = 10000)
 
-    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,epsilon=0.1)
 
-    state_encoding_params = StateEncodingParams(default_shape=(240, 256),
-                                                resize_factor=8,
+
+    state_encoding_params = StateEncodingParams(resize_factor=8,
                                                 pixel_intensity=8)
 
+    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
+                                                           epsilon=0.1,
+                                                           state_encoding_params=state_encoding_params)
         
-    #action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
-    #                                       epsilon=0.1,
-    #                                       state_encoding_params = state_encoding_params)
+    # action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
+    #                                         epsilon=0.1,
+    #                                         state_encoding_params = state_encoding_params)
 
 
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
@@ -304,7 +287,6 @@ if __name__ == '__main__':
                     q_estimator,
                     action_policy,
                     action_set,
-                    clustering_method = "kmeans",
                     headless=True)
     
     app.main_loop()
