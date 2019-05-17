@@ -164,16 +164,26 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
                 self.step()
                 if self.verbose:
                     if isinstance(self.rl_agent.action_policy, CEGAP.ClusterEpsilonGreedyActionPolicy):
-                        if self.rl_agent.action_policy.c is not None:
+                        if self.rl_agent.action_policy.cluster_model is not None:
                             print('M(c, a) table:')
                             sep = '+'
                             action_count_table = pd.DataFrame(data = self.rl_agent.action_policy.show_action_count().astype('int'),
                                                               columns = np.array([sep.join(i) for i in self.rl_agent.action_set]),
-                                                              index = range(self.n_clusters))
+                                                              index = range(self.rl_agent.action_policy.s_e_p.n_clusters))
                             print(action_count_table)
                         else:
-                            print("no cluster yet")
-                
+                            print("No cluster yet")
+                    if isinstance(self.rl_agent.action_policy, ADSP.AggressiveDSPolicy):
+                        print("M(c, a) table : up to 40 states")
+                        sep = '+'
+                        d = self.rl_agent.action_policy.show_action_count()
+                        action_count_table = pd.DataFrame.from_dict(d,
+                                                                    orient = 'index',
+                                                                    columns = np.array([sep.join(i) for i in self.rl_agent.action_set]))
+                        action_count_table.index = range(len(d))
+                        print("Number of collected states: {}".format(len(d)))
+                        print(action_count_table.head(40))
+                        
             elif char == 'q':
                 if self.confirm_quit():
                     self.should_quit = True
@@ -252,7 +262,7 @@ if __name__ == '__main__':
 
 
 
-    state_encoding_params = StateEncodingParams(resize_factor=8,
+    state_encoding_params = StateEncodingParams(resize_factor=32,
                                                 pixel_intensity=8)
 
     action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
