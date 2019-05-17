@@ -19,24 +19,17 @@ class AggressiveDSPolicy(IActionPolicy):
                                         state_encoding_params=self.s_e_p)
 
     def add_action_count(self, encoded_state, action):
-        # import pdb; pdb.set_trace()
-        if encoded_state in self.action_counter:
-            self.action_counter[encoded_state][action] += 1
-        else:
-            self.action_counter[encoded_state] = [0 for i in range(len(self.actions))]
-            self.action_counter[encoded_state][action] += 1
-
+        self.action_counter[encoded_state][action] += 1
+        
     def gibbs_action_count(self, encoded_state):
-        if encoded_state in self.action_counter:
-            temp = np.exp(-1* np.array(self.action_counter[encoded_state]))
-            temp = temp/np.sum(temp)
-            return temp
-        else:
-            self.action_counter[encoded_state] = [0 for i in range(len(self.actions))]
-            return self.gibbs_action_count(encoded_state)
+        temp = np.exp(-1* np.array(self.action_counter[encoded_state]))
+        temp = temp/np.sum(temp)
+        return temp
 
     def get_action(self, state, q_estimator):
         encoded_state = self.encode_state(state)
+        if encoded_state not in self.action_counter:
+            self.action_counter[encoded_state] = [0 for i in range(len(self.actions))]
         if random.random() < self.epsilon:
             mask = self.gibbs_action_count(encoded_state)
             action_choice = np.random.choice(self.actions, p=mask)
