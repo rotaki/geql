@@ -145,6 +145,6 @@ class ClusterEpsilonGreedyActionPolicy (IActionPolicy):
             print("number of unique samples for kmeans: too small. resume")
 
     def summary(self):
-        return 'Cluster $\epsilon-greedy$ [$\epsilon = {}$, $|A| = {}$]'.format(self.epsilon, len(self.actions))
+        return 'Cluster $\epsilon-greedy$ [$\epsilon = {}$, $|A| = {}$, $downscale factor = {}$, $pixel intensity = {}$, $n_clusters = {}$]'.format(self.epsilon, len(self.actions), self.s_e_p.resize_factor, self.s_e_p.pixel_intensity, self.s_e_p.n_clusters)
 
     # TODO: Load/save

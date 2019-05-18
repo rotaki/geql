@@ -45,5 +45,5 @@ class AggressiveDSPolicy(IActionPolicy):
             return chosen[0]
 
     def summary(self):
-        return 'Agressive DS $\epsilon-greedy$ [$\epsilon = {}$, $|A| = {}$]'.format(self.epsilon, len(self.actions))
+        return 'Agressive DS $\epsilon-greedy$ [$\epsilon = {}$, $|A| = {}$, $downscale factor = {}$, $pixel intensity = {}$]'.format(self.epsilon, len(self.actions), self.s_e_p.resize_factor, self.s_e_p.pixel_intensity)
     
