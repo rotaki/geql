@@ -1,5 +1,5 @@
 class StateEncodingParams:
-    def __init__(self, resize_factor, pixel_intensity, n_clusters=40,default_shape=(240, 256), compression=8, sample_collect_interval=4, batch_size=64):
+    def __init__(self, resize_factor, pixel_intensity, n_clusters=40,default_shape=(240, 256), compression=8, sample_collect_interval=12, batch_size=32):
         
         self.default_shape = (default_shape[0]-40, default_shape[1]) # 200, 256
         self.resize_factor = resize_factor

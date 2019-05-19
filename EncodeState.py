@@ -21,7 +21,7 @@ class EncodeState:
             new_height = state_encoding_params.default_shape[0]//state_encoding_params.resize_factor
             resized_img = img.resize((new_width, new_height), resample=Image.BICUBIC)
             imgtoArray = np.asarray(resized_img).reshape(-1)
-            imgtoArray = np.digitize(imgtoArray, bins=self.digitize_state(state_encoding_params))*(256/state_encoding_params.pixel_intensity)
+            imgtoArray = np.digitize(imgtoArray, bins=self.digitize_state(state_encoding_params))*(256/state_encoding_params.pixel_intensity)-1
             return imgtoArray
         elif (clustering_method == "agressive_ds"):
             img = Image.fromarray(state)
