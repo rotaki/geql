@@ -29,9 +29,9 @@ class GBoostedQEstimator(IQEstimator):
 
         self.trajectories = []
         self.n_trajectories = 0
-        self.initial_trajectories_per_regressor = 256
+        self.initial_trajectories_per_regressor = 32
         self.trajectories_per_regressor = self.initial_trajectories_per_regressor
-        self.max_trajectories_per_regressor = 2048
+        self.max_trajectories_per_regressor = 256
         self.estimators = dict()
         self.discount = discount
         self.learning_rate = learning_rate
@@ -158,7 +158,7 @@ class GBoostedQEstimator(IQEstimator):
             dmatrix = xgboost.DMatrix(state_matrix, target_vector)
             if self.trajectories_per_regressor == self.max_trajectories_per_regressor:
                 params = dict([
-                    ('max_depth', 5),
+                    ('max_depth', 3),
                     #('gpu_id', 0),
                     #('tree_method', 'gpu_exact'),
                   
@@ -171,7 +171,7 @@ class GBoostedQEstimator(IQEstimator):
                 ])
             evallist = [(dmatrix, 'action-{}'.format(action))]
             print('Training regressor for action {}. n={}'.format(action, n))
-            booster = xgboost.train(params, dmatrix, evals=evallist, verbose_eval=True)
+            booster = xgboost.train(params, dmatrix, num_boost_round=1, evals=evallist, verbose_eval=True)
 
             # Add the booster to the set of regressors for the action
             if action not in self.estimators:
