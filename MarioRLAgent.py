@@ -156,7 +156,7 @@ class MarioRLAgent:
             # Sanity check for gym-bug that launches doomed state
             if self.frames == 0 and reward == -15:
                 # Do a recursive retry
-                print('Warning: Doomed instance. Retrying')
+                print('*** ***MEGA-Warning: Doomed instance. Retrying*** ***')
                 self.game_over = True
                 self.episode_done = True
                 self.step()
@@ -182,6 +182,9 @@ class MarioRLAgent:
             # Terminate the episode on death-signal
             if reward <= -15:
                 self.episode_done = True
+                if info['life'] == 0:
+                    # Force game over to fix gym showing buggy state with life -255
+                    self.game_over = True
 
             # Teriminate the game on finishing the level
             if info['flag_get']:
