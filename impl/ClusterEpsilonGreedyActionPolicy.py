@@ -99,7 +99,7 @@ class ClusterEpsilonGreedyActionPolicy (IActionPolicy):
 
     def gibbs_action_count(self, cluster):
         temp = np.nan_to_num(np.exp(-1*self.action_counter[cluster]))
-        temp = temp/np.sum(temp)
+        temp = np.nan_to_num(temp/np.sum(temp))
         return temp
     
         

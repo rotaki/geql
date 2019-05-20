@@ -23,7 +23,7 @@ class AggressiveDSPolicy(IActionPolicy):
         
     def gibbs_action_count(self, encoded_state):
         temp = np.nan_to_num(np.exp(-1* np.array(self.action_counter[encoded_state])))
-        temp = temp/np.sum(temp)
+        temp = np.nan_to_num(temp/np.sum(temp))
         return temp
 
     def get_action(self, state, q_estimator):
