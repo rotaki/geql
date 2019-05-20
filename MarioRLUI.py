@@ -257,19 +257,19 @@ if __name__ == '__main__':
     action_set = COMPLEX_MOVEMENT
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
-    # action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-    #                                                epsilon=0.1,
-    #                                                decay_factor = 0.5,
-    #                                                decay_interval = 10000)
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+                                                   epsilon=0.1,
+                                                   decay_factor = 0.5,
+                                                   decay_interval = 10000)
 
 
 
     state_encoding_params = StateEncodingParams(resize_factor=32,
                                                 pixel_intensity=8)
 
-    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
-                                                           epsilon=0.1,
-                                                           state_encoding_params=state_encoding_params)
+    #action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
+    #                                                       epsilon=0.1,
+    #                                                       state_encoding_params=state_encoding_params)
         
     # action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
     #                                         epsilon=0.1,
@@ -288,7 +288,7 @@ if __name__ == '__main__':
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
     q_estimator = GBQ.GBoostedQEstimator(discount=0.9,
-                                         steps=1,
+                                         steps=30,
                                          learning_rate=0.5,
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
