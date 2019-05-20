@@ -108,7 +108,7 @@ class GBoostedQEstimator(IQEstimator):
         residuals_by_action = dict()
 
         # Process the trajectories one by one
-        for trajectory in self.trajectories:
+        for i, trajectory in enumerate(self.trajectories):
             # Get Q(s, a) observations for this episode
             if self.learning_policy == MarioRLAgent.LearningPolicy.Q:
                 sa_tuples = trajectory.q_episode_backup(self.discount,
@@ -121,6 +121,10 @@ class GBoostedQEstimator(IQEstimator):
                                                                  self)
             else:
                 raise NotImplementedError('Unknown learning policy')
+
+            if len(sa_tuples) == 0:
+                print('Warning: Empty trajectory')
+                continue
 
             # State size
             state_size = self.shape_state(sa_tuples[0].state).size        

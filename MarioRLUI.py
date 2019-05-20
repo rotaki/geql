@@ -228,6 +228,8 @@ class MarioRLUI(MarioRLAgent.IMarioRLAgentListener):
             return False
 
     def make_snapshot(self):
+        if not self.headless:
+            print('Not making a snapshot, since snaphots are only supported in headless mode')
         filename = self.output_dir + 'snapshot_e{}.dat'.format(
             self.last_episode_finished)
         pickle.dump(self, open(filename, 'wb'))
