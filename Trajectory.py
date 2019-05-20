@@ -46,7 +46,8 @@ class Trajectory:
             if entry + forward_step >= len(self.transitions):
                 raise RuntimeError('Trajectory does not contain the required number of transitions')
             forward_entry = self.transitions[entry + forward_step]
-            discounted_reward += pow(discount, forward_step) * forward_entry.reward
+            if not forward_entry.reward is None: 
+                discounted_reward += pow(discount, forward_step) * forward_entry.reward
             if forward_entry.terminal:
                 reached_terminal_state = True
                 break
