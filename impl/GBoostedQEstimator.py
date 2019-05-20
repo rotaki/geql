@@ -158,14 +158,14 @@ class GBoostedQEstimator(IQEstimator):
             dmatrix = xgboost.DMatrix(state_matrix, target_vector)
             if self.trajectories_per_regressor == self.max_trajectories_per_regressor:
                 params = dict([
-                    ('max_depth', 3),
+                    ('max_depth', 5),
                     #('gpu_id', 0),
                     #('tree_method', 'gpu_exact'),
                   
                 ])
             else:
                 params = dict([
-                    ('max_depth', 3)
+                    ('max_depth', 5)
                     #('gpu_id', 0),
                     #('tree_method', 'gpu_exact')
                 ])
