@@ -152,6 +152,16 @@ class MarioRLAgent:
         for frame in range(self.action_interval):
             self.sa_sequence.append((self.state, self.action))
             next_state, reward, self.game_over, info = self.env.step(self.action)
+
+            # Sanity check for gym-bug that launches doomed state
+            if self.frames == 0 and reward == -15:
+                # Do a recursive retry
+                print('Warning: Doomed instance. Retrying')
+                self.game_over = True
+                self.episode_done = True
+                self.step()
+                return
+            
             self.episode_done = self.game_over
                         
             if info['x_pos'] > 60000:
