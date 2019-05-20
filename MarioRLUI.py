@@ -257,19 +257,19 @@ if __name__ == '__main__':
     action_set = COMPLEX_MOVEMENT
     env = BinarySpaceToDiscreteSpaceEnv(env, action_set)
     action_list = list(range(env.action_space.n))
-    # action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
-    #                                                epsilon=0.1,
-    #                                                decay_factor = 0.5,
-    #                                                decay_interval = 10000)
+    action_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
+                                                   epsilon=0.1,
+                                                   decay_factor = 0.5,
+                                                   decay_interval = 10000)
 
 
 
     state_encoding_params = StateEncodingParams(resize_factor=32,
                                                 pixel_intensity=8)
 
-    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
-                                                           epsilon=0.1,
-                                                           state_encoding_params=state_encoding_params)
+    #action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
+    #                                                       epsilon=0.1,
+    #                                                       state_encoding_params=state_encoding_params)
         
     # action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
     #                                         epsilon=0.1,
@@ -279,7 +279,7 @@ if __name__ == '__main__':
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
                                                    epsilon=0)
 
-    learning_policy = MarioRLAgent.LearningPolicy.SARSA
+    learning_policy = MarioRLAgent.LearningPolicy.Q
 
 
     # q_estimator = TabQ.TabularQEstimator(discount=0.5,
