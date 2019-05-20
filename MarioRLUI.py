@@ -264,8 +264,10 @@ if __name__ == '__main__':
 
 
 
-    state_encoding_params = StateEncodingParams(resize_factor=32,
-                                                pixel_intensity=8)
+    state_encoding_params = StateEncodingParams(resize_factor=8,
+                                                pixel_intensity=256,
+                                                n_clusters=100,
+                                                batch_size=1024)
 
     action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
                                                            epsilon=0.1,
@@ -288,7 +290,7 @@ if __name__ == '__main__':
     #                                      learning_policy=learning_policy,
     #                                      q_action_policy=None)
     q_estimator = GBQ.GBoostedQEstimator(discount=0.9,
-                                         steps=1,
+                                         steps=30,
                                          learning_rate=0.5,
                                          learning_policy=learning_policy,
                                          q_action_policy=greedy_policy)
