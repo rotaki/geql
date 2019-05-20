@@ -32,7 +32,10 @@ class AggressiveDSPolicy(IActionPolicy):
             self.action_counter[encoded_state] = [0 for i in range(len(self.actions))]
         if random.random() < self.epsilon:
             mask = self.gibbs_action_count(encoded_state)
-            action_choice = np.random.choice(self.actions, p=mask)
+            try:
+                action_choice = np.random.choice(self.actions, p=mask)
+            except:
+                action_choice = np.random.choice(self.actions)
             self.add_action_count(encoded_state, action_choice)
             return action_choice
         else:

@@ -110,7 +110,10 @@ class ClusterEpsilonGreedyActionPolicy (IActionPolicy):
             # Choose randomly
             if self.cluster_model is not None:
                 mask = self.gibbs_action_count(self.predict_state_cluster(state))
-                action_choice = np.random.choice(self.actions, p=mask)
+                try:
+                    action_choice = np.random.choice(self.actions, p=mask)
+                except:
+                    action_choice = np.random.choice(self.actions)
                 self.add_action_count(self.predict_state_cluster(state), action_choice)
             else:
                 action_choice = np.random.choice(self.actions)
