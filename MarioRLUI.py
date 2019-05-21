@@ -273,7 +273,8 @@ if __name__ == '__main__':
         
     action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
                                             epsilon=0.1,
-                                            state_encoding_params = state_encoding_params)
+                                            state_encoding_params = state_encoding_params,
+                                            decay_factor = 0.5)
 
 
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
