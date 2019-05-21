@@ -267,13 +267,13 @@ if __name__ == '__main__':
     state_encoding_params = StateEncodingParams(resize_factor=32,
                                                 pixel_intensity=8)
 
-    action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
-                                                           epsilon=0.1,
-                                                           state_encoding_params=state_encoding_params)
+    # action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
+    #                                                        epsilon=0.1,
+    #                                                        state_encoding_params=state_encoding_params)
         
-    # action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
-    #                                         epsilon=0.1,
-    #                                         state_encoding_params = state_encoding_params)
+    action_policy = ADSP.AggressiveDSPolicy(actions=action_list,
+                                            epsilon=0.1,
+                                            state_encoding_params = state_encoding_params)
 
 
     greedy_policy = EGAP.EpsilonGreedyActionPolicy(actions=action_list,
