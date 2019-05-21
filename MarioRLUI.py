@@ -265,7 +265,9 @@ if __name__ == '__main__':
 
 
     state_encoding_params = StateEncodingParams(resize_factor=32,
-                                                pixel_intensity=8)
+                                                pixel_intensity=256,
+                                                batch_size=1024,
+                                                n_clusters=100)
 
     action_policy = CEGAP.ClusterEpsilonGreedyActionPolicy(actions=action_list,
                                                            epsilon=0.1,
